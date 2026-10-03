@@ -13,10 +13,12 @@ import {
   explorerTx,
   parseSol,
 } from '../../lib/charity-vault';
+import { Mark } from '../../mark';
 import { sendCampaignInstruction } from '../../lib/send-campaign';
 import type { AppClient } from '../../providers';
 
 const DURATIONS: { label: string; seconds: number }[] = [
+  { label: '1 minute', seconds: 60 },
   { label: '1 hour', seconds: 3_600 },
   { label: '1 day', seconds: 86_400 },
   { label: '1 week', seconds: 604_800 },
@@ -135,7 +137,9 @@ export default function New() {
           ) : null}
         </form>
         <aside>
-          <strong>✳</strong>
+          <strong>
+            <Mark />
+          </strong>
           <h2>
             Your terms,
             <br />

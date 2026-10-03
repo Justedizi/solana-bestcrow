@@ -7,7 +7,7 @@ import { Store } from '../src/db/index.js';
 import { sha256, toHex } from '../src/solana/program.js';
 import { CAMPAIGN_ACCOUNT_SIZE } from '../src/solana/program.js';
 
-const CREATOR = 'F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3' as Address;
+const CREATOR = '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG' as Address;
 const CAMPAIGN_ONE = 'So11111111111111111111111111111111111111112' as Address;
 const CAMPAIGN_TWO = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address;
 const DONOR = '11111111111111111111111111111111' as Address;

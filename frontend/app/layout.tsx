@@ -1,13 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { Mark } from './mark';
 import { WalletButton } from './wallet-button';
 import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Common Ground — Charity Vault',
-  description: 'Transparent crowdfunding on Solana',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  title: 'Common Ground — charity crowdfunding without the middleman',
+  description:
+    'Charity crowdfunding where funds are released by rule, not an operator. Goal met → the charity claims; goal missed → every donor refunded in one transaction. Built on Solana.',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -18,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <header>
             <div className="shell nav">
               <Link href="/" className="logo">
-                <b>✳</b> common<span>ground</span>
+                <Mark /> common<span>ground</span>
                 <small>/ CHARITY VAULT</small>
               </Link>
               <nav>
@@ -36,7 +39,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <main>{children}</main>
           <footer>
             <div className="shell">
-              <b>✳ common ground</b>
+              <b>common ground</b>
               <span>Small acts. Transparent outcomes. Built on Solana.</span>
               <Link href="/how-it-works">The trust model ↗</Link>
             </div>

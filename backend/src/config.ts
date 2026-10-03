@@ -40,7 +40,7 @@ export const config = {
   port: int('PORT', 4000),
   corsOrigin: str('CORS_ORIGIN', '*'),
   rpcUrl: str('SOLANA_RPC_URL', 'https://api.devnet.solana.com'),
-  programId: str('CHARITY_VAULT_PROGRAM_ID', 'F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3'),
+  programId: str('CHARITY_VAULT_PROGRAM_ID', '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG'),
   cluster: str('CLUSTER', 'devnet'),
   dbPath: (() => {
     const raw = str('DB_PATH', './data/bestcrow.db');

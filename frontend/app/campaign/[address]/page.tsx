@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useConnectedWallet } from '@solana/kit-plugin-wallet/react';
 import { useClient } from '@solana/react';
-import { address, type Address } from '@solana/kit';
+import { address, type Address, type Instruction } from '@solana/kit';
 
 import {
   claimRefundIx,
@@ -22,6 +22,8 @@ import {
   type Campaign,
   type Ledger,
 } from '../../lib/charity-vault';
+import { fundingEligibility } from '../../lib/eligibility';
+import { Mark } from '../../mark';
 import { sendCampaignInstruction } from '../../lib/send-campaign';
 import type { AppClient } from '../../providers';
 
@@ -37,6 +39,17 @@ function countdown(deadline: number, now: number): string {
   if (hours > 0) return `${hours}h ${minutes}m left`;
   return `${minutes}m ${secs}s left`;
 }
+
+type Action = {
+  key: string;
+  label: string;
+  signer: string;
+  description: string;
+  available: boolean;
+  reason?: string;
+  variant: 'coral' | 'dark';
+  run?: () => Promise<Instruction>;
+};
 
 export default function Detail() {
   const params = useParams<{ address: string }>();
@@ -79,7 +92,7 @@ export default function Detail() {
     return () => clearInterval(timer);
   }, []);
 
-  async function run(build: () => Promise<import('@solana/kit').Instruction>, label: string) {
+  async function send(build: () => Promise<Instruction>, label: string) {
     if (!wallet) {
       setStatus('Connect a wallet first.');
       return;
@@ -114,10 +127,67 @@ export default function Detail() {
   const goal = Number(formatSol(campaign.goal));
   const raised = Number(formatSol(campaign.raised));
   const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
-  const deadlinePassed = campaign.deadline * 1000 <= now;
-  const isCreator = wallet === campaign.creator;
-  const statusText =
-    campaign.status === 'Active' ? 'FUNDING OPEN' : campaign.status === 'Succeeded' ? 'GOAL REACHED' : 'REFUNDING';
+  // Single source of truth for "can this wallet act?" — mirrors the program.
+  const elig = fundingEligibility({ campaign, ledger, wallet, nowMs: now });
+  const active = campaign.status === 'Active';
+
+  const actions: Action[] = [
+    {
+      key: 'pledge',
+      label: 'Pledge',
+      signer: 'donor',
+      description: 'Move SOL into the program vault and create your donor ledger.',
+      available: elig.canPledge,
+      reason: elig.pledgeReason,
+      variant: 'coral',
+      run: () => pledgeIx(wallet!, campaign.address, parseSol(amount)),
+    },
+    {
+      key: 'finalize',
+      label: 'Finalize',
+      signer: 'anyone',
+      description: 'After the deadline, set the outcome to Succeeded or Refunded. Any donor may call this.',
+      available: elig.canFinalize,
+      reason: elig.finalizeReason,
+      variant: 'dark',
+      run: () => finalizeIx(wallet!, campaign.address),
+    },
+    {
+      key: 'claim_success',
+      label: 'Claim funds',
+      signer: 'charity',
+      description: 'If the goal was met, sweep the vault to the charity.',
+      available: elig.canClaimSuccess,
+      reason: elig.claimSuccessReason,
+      variant: 'coral',
+      run: () => claimSuccessIx(wallet!, campaign.address),
+    },
+    {
+      key: 'claim_refund',
+      label:
+        elig.refundableAmount > 0n
+          ? `Claim ${formatSol(elig.refundableAmount)} SOL refund`
+          : 'Claim refund',
+      signer: 'donor',
+      description: 'Refund your exact pledge, once, if the goal was missed.',
+      available: elig.canClaimRefund,
+      reason: elig.claimRefundReason,
+      variant: 'coral',
+      run: () => claimRefundIx(wallet!, campaign.address),
+    },
+    {
+      key: 'refund_all',
+      label: `Refund all ${campaign.donors.length} donors in one tx`,
+      signer: 'anyone',
+      description: 'Repay every donor in a single transaction and drain the vault.',
+      available: elig.canRefundAll,
+      reason: elig.refundAllReason,
+      variant: 'dark',
+      run: () => refundAllIx(wallet!, campaign),
+    },
+  ];
+
+  const statusText = active ? 'FUNDING OPEN' : campaign.status === 'Succeeded' ? 'GOAL REACHED' : 'REFUNDING';
 
   return (
     <div className="shell page detail">
@@ -130,20 +200,34 @@ export default function Detail() {
       </h1>
       <div className="detail-grid">
         <div>
-          <div className="detail-art">✳</div>
-          <article>
-            <h2>Campaign vault</h2>
-            <p>
+          <div className="detail-art">
+            <div className="mark">
+              <Mark />
+            </div>
+          </div>
+          <div className="proof">
+            <h3>On-chain proof</h3>
+            <div className="row">
+              <span>Campaign PDA</span>
               <a
                 href={`https://explorer.solana.com/address/${campaign.address}?cluster=devnet`}
                 target="_blank"
                 rel="noreferrer"
               >
-                {shortAddress(campaign.address)}
-              </a>{' '}
-              · creator {shortAddress(campaign.creator)}
-            </p>
-          </article>
+                {shortAddress(campaign.address)} ↗
+              </a>
+            </div>
+            <div className="row">
+              <span>Creator</span>
+              <a
+                href={`https://explorer.solana.com/address/${campaign.creator}?cluster=devnet`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {shortAddress(campaign.creator)} ↗
+              </a>
+            </div>
+          </div>
           <article>
             <h2>
               Supporters <small>({campaign.donors.length})</small>
@@ -153,12 +237,20 @@ export default function Detail() {
             ) : (
               campaign.donors.map((donor) => (
                 <p className="supporter" key={donor}>
-                  ✳ &nbsp; {shortAddress(donor)}
+                  <span>{shortAddress(donor)}</span>
+                  <a
+                    href={`https://explorer.solana.com/address/${donor}?cluster=devnet`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    view ↗
+                  </a>
                 </p>
               ))
             )}
           </article>
         </div>
+
         <aside className="donate">
           <small>● {statusText}</small>
           <h2>
@@ -171,90 +263,49 @@ export default function Detail() {
             Goal <b>{goal.toFixed(2)} SOL</b>
           </p>
           <p className="stat">
-            {deadlinePassed ? 'Deadline' : 'Closing'} <b>{countdown(campaign.deadline, now)}</b>
+            {elig.deadlinePassed ? 'Deadline' : 'Closing'} <b>{countdown(campaign.deadline, now)}</b>
           </p>
 
-          {campaign.status === 'Active' && !deadlinePassed ? (
-            <>
-              <input
-                placeholder="0.00 SOL"
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-              />
-              <button
-                className="button coral"
-                type="button"
-                disabled={busy || !connected}
-                onClick={() => {
-                  try {
-                    const value = parseSol(amount);
-                    void run(
-                      () => pledgeIx(wallet!, campaign.address, value),
-                      'Pledging…',
-                    );
-                  } catch (err) {
-                    setStatus(err instanceof Error ? err.message : 'Enter a positive amount.');
-                  }
-                }}
-              >
-                {connected ? 'Pledge ↗' : 'Connect wallet to pledge ↗'}
-              </button>
-            </>
+          {active && !elig.deadlinePassed ? (
+            <input
+              placeholder="0.00 SOL"
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
           ) : null}
 
-          {campaign.status === 'Active' && deadlinePassed ? (
-            <button
-              className="button coral"
-              type="button"
-              disabled={busy || !connected}
-              onClick={() => void run(() => finalizeIx(wallet!, campaign.address), 'Finalizing…')}
-            >
-              Finalize outcome ↗
-            </button>
-          ) : null}
-
-          {campaign.status === 'Succeeded' && isCreator ? (
-            <button
-              className="button coral"
-              type="button"
-              disabled={busy || campaign.paid}
-              onClick={() =>
-                void run(() => claimSuccessIx(wallet!, campaign.address), 'Claiming…')
-              }
-            >
-              {campaign.paid ? 'Funds already claimed' : 'Claim funds ↗'}
-            </button>
-          ) : null}
-
-          {campaign.status === 'Refunded' && ledger && !ledger.claimed ? (
-            <button
-              className="button coral"
-              type="button"
-              disabled={busy || !connected}
-              onClick={() => void run(() => claimRefundIx(wallet!, campaign.address), 'Refunding…')}
-            >
-              Claim your {formatSol(ledger.amount)} SOL refund ↗
-            </button>
-          ) : null}
-
-          {campaign.status === 'Refunded' && campaign.donors.length > 0 ? (
-            <button
-              className="button dark"
-              type="button"
-              disabled={busy || !connected}
-              onClick={() =>
-                void run(
-                  () => refundAllIx(wallet!, campaign),
-                  'Refunding everyone in one transaction…',
-                )
-              }
-            >
-              Refund all {campaign.donors.length} donors in one tx ↗
-            </button>
-          ) : null}
+          <div className="program-actions">
+            {actions.map((action) => (
+              <div className="program-action" key={action.key}>
+                <div className="program-action-head">
+                  <b>{action.label}</b>
+                  <span className="tag">{action.signer}</span>
+                </div>
+                <p className="fine">{action.description}</p>
+                {action.available ? (
+                  <button
+                    className={`button ${action.variant}`}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      try {
+                        void send(action.run!, `${action.label}…`);
+                      } catch (err) {
+                        setStatus(err instanceof Error ? err.message : 'Invalid input');
+                      }
+                    }}
+                  >
+                    {busy ? 'Working…' : `${action.label} ↗`}
+                  </button>
+                ) : (
+                  <p className="fine muted">{action.reason}</p>
+                )}
+              </div>
+            ))}
+          </div>
 
           <p className="fine">
             Funds are locked until the deadline. If the goal is missed, donors can claim their exact contribution back.

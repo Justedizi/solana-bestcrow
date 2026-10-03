@@ -5,15 +5,17 @@ package_manager = "npm"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
-
 [programs.devnet]
-charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
+charity_vault = "74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG"
+
+[programs.localnet]
+charity_vault = "74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "cargo test --manifest-path programs/charity-vault/Cargo.toml"
+
+[hooks]

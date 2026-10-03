@@ -22,6 +22,7 @@ pub struct ClaimRefund<'info> {
 
 pub fn handler(ctx: Context<ClaimRefund>) -> Result<()> {
     let campaign = &ctx.accounts.campaign;
+    require!(!campaign.terminated, CharityVaultError::CampaignTerminated);
     require!(
         campaign.status == CampaignStatus::Refunded,
         CharityVaultError::CampaignNotRefunded

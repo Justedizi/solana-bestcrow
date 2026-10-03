@@ -16,9 +16,15 @@ pub enum CharityVaultError {
     CampaignNotSucceeded,
     #[msg("Campaign has not failed")]
     CampaignNotRefunded,
-    #[msg("Campaign goal has not been reached")]
+    #[msg("Campaign is not staged")]
+    CampaignNotStaged,
+    #[msg("Campaign has been terminated")]
+    CampaignTerminated,
+    #[msg("Campaign has not been terminated")]
+    CampaignNotTerminated,
+    #[msg("Goal must be met before milestones can be released")]
     GoalNotReached,
-    #[msg("Campaign goal was reached")]
+    #[msg("Goal was reached")]
     GoalReached,
     #[msg("Donation would exceed the campaign goal")]
     GoalOverflow,
@@ -34,4 +40,32 @@ pub enum CharityVaultError {
     InsufficientVaultBalance,
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,
+    #[msg("Too many milestones")]
+    TooManyMilestones,
+    #[msg("Milestone index is out of range")]
+    InvalidMilestoneIndex,
+    #[msg("Milestone amount exceeds half of the base budget")]
+    MilestoneExceedsHalf,
+    #[msg("Milestone allocations exceed the base budget")]
+    MilestoneSumExceedsBudget,
+    #[msg("Milestone is not in the right state for this action")]
+    InvalidMilestoneStatus,
+    #[msg("Only the campaign creator may do this")]
+    UnauthorizedCreator,
+    #[msg("Vote weight exceeds the campaign total")]
+    VoteWeightExceedsRaised,
+    #[msg("This donor already voted on the milestone")]
+    AlreadyVoted,
+    #[msg("The split configuration is invalid")]
+    InvalidSplit,
+    #[msg("Nothing has vested yet")]
+    NothingVested,
+    #[msg("The recipient is not part of this split")]
+    InvalidRecipient,
+    #[msg("The bond may not be claimed in this state")]
+    BondUnavailable,
+    #[msg("The campaign has no bond")]
+    NoBond,
+    #[msg("Staged campaigns release funds through milestones")]
+    StagedCampaignUsesMilestones,
 }

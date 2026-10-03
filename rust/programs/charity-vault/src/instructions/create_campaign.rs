@@ -50,6 +50,18 @@ pub fn handler(
     campaign.donor_count = 0;
     campaign.donors = [Pubkey::default(); MAX_DONORS];
     campaign.bump = ctx.bumps.campaign;
+    campaign.staged = false;
+    campaign.base_budget = 0;
+    campaign.initial_tranche = 0;
+    campaign.released = 0;
+    campaign.bond = 0;
+    campaign.bond_forfeited = false;
+    campaign.terminated = false;
+    campaign.milestone_count = 0;
+    campaign.allocated = 0;
+    campaign.rejections = 0;
+    campaign.refund_pool = 0;
+    campaign.refunds_claimed = 0;
 
     emit!(CampaignCreated {
         campaign: campaign.key(),

@@ -33,7 +33,8 @@ test('backend account layout matches the Rust program', () => {
   assert.equal(MAX_DONORS, rustMaxDonors, 'backend MAX_DONORS must match constants.rs');
   assert.equal(
     CAMPAIGN_ACCOUNT_SIZE,
-    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32 + 1,
+    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32 + 1
+      + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 8 + 1 + 8 + 1,
     'CAMPAIGN_ACCOUNT_SIZE must match CampaignAccount::INIT_SPACE + discriminator',
   );
   assert.equal(DONOR_LEDGER_ACCOUNT_SIZE, 8 + 32 + 32 + 8 + 1 + 1);

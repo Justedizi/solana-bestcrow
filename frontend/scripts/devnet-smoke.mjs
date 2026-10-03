@@ -25,7 +25,7 @@ import {
 const RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
 const WS = 'wss://api.devnet.solana.com';
 const PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID ?? 'F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3',
+  process.env.NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID ?? '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG',
 );
 const SYSTEM = address('11111111111111111111111111111111');
 const KEYPAIR = process.env.ANCHOR_WALLET ?? path.join(os.homedir(), '.config/solana/id.json');

@@ -1,66 +1,51 @@
+# One command to present:  docker compose up --build
+# Web: http://localhost:3000   API: http://localhost:4000/api/health
+name: charity-vault
+
 services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-https://api.devnet.solana.com}
+        NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
+    image: charity-vault-web:latest
+    init: true
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 6
+
   backend:
     build: ./backend
+    image: charity-vault-backend:latest
     init: true
     environment:
       PORT: "4000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3}
+      CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
       CLUSTER: devnet
       DB_PATH: /app/data/bestcrow.db
       INDEXER_ENABLED: ${INDEXER_ENABLED:-true}
       POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-15000}
       SIGNATURE_SCAN_LIMIT: ${SIGNATURE_SCAN_LIMIT:-200}
     ports:
-      - "127.0.0.1:4000:4000"
+      - "4000:4000"
     volumes:
       - backend-data:/app/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 5s
       start_period: 20s
       retries: 3
-    develop:
-      watch:
-        - action: sync
-          path: ./backend/src
-          target: /app/src
-        - action: rebuild
-          path: ./backend/package.json
-        - action: rebuild
-          path: ./backend/package-lock.json
-        - action: rebuild
-          path: ./backend/tsconfig.json
-
-  frontend:
-    build: ./frontend
-    init: true
-    environment:
-      NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3}
-      NEXT_TELEMETRY_DISABLED: "1"
-    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
-    ports:
-      - "127.0.0.1:3000:3000"
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-      interval: 10s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
-    develop:
-      watch:
-        - action: sync
-          path: ./frontend/app
-          target: /app/app
-        - action: rebuild
-          path: ./frontend/package.json
-        - action: rebuild
-          path: ./frontend/package-lock.json
-        - action: rebuild
-          path: ./frontend/tsconfig.json
 
 volumes:
   backend-data:

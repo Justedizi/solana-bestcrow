@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { getAddressEncoder, type Address } from '@solana/kit';
 import {
   CAMPAIGN_ACCOUNT_SIZE,
+  CAMPAIGN_BUMP_OFFSET,
   CAMPAIGN_DISCRIMINATOR,
   DONOR_LEDGER_ACCOUNT_SIZE,
   DONOR_LEDGER_DISCRIMINATOR,
@@ -24,7 +25,7 @@ import { verifyDescription } from '../src/services/campaigns.js';
 
 const encoder = getAddressEncoder();
 
-const CREATOR = 'F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3' as Address;
+const CREATOR = '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG' as Address;
 const CAMPAIGN = 'So11111111111111111111111111111111111111112' as Address;
 const DONOR = '11111111111111111111111111111111' as Address;
 const DONOR_TWO = 'SysvarRent111111111111111111111111111111111' as Address;
@@ -64,7 +65,7 @@ function buildCampaign(options: {
   const donors = options.donors ?? [DONOR, DONOR_TWO];
   data[106] = donors.length;
   donors.forEach((donor, index) => writeAddress(data, 107 + index * 32, donor));
-  data[CAMPAIGN_ACCOUNT_SIZE - 1] = 254;
+  data[CAMPAIGN_BUMP_OFFSET] = 254;
   return data;
 }
 

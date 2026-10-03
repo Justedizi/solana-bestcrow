@@ -26,7 +26,8 @@ const RENT: u64 = 890_880;
 /// Derived from the on-chain `MAX_DONORS` so a constant change can never silently
 /// desync the test layout from the program (and the TS mirrors in backend/frontend).
 const CAMPAIGN_SIZE: usize =
-    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + charity_vault::constants::MAX_DONORS * 32 + 1;
+    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + charity_vault::constants::MAX_DONORS * 32 + 1
+        + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 8 + 1 + 8 + 1;
 const LEDGER_SIZE: usize = 8 + 32 + 32 + 8 + 1 + 1;
 
 fn program_id() -> Address {
@@ -97,6 +98,12 @@ fn instruction(accounts: Vec<AccountMeta>, data: Vec<u8>) -> Instruction {
 
 fn fund(svm: &mut LiteSVM, who: &Keypair) {
     svm.airdrop(&who.pubkey(), 10 * SOL).expect("airdrop");
+}
+
+/// Force a fresh blockhash so an identical instruction produces a distinct
+/// signature (LiteSVM rejects byte-identical transactions as already processed).
+fn warp(svm: &mut LiteSVM) {
+    svm.expire_blockhash();
 }
 
 fn send(svm: &mut LiteSVM, ixs: &[Instruction], payer: &Keypair, extra: &[&Keypair]) {
@@ -546,3 +553,527 @@ fn rejects_invalid_terms_and_out_of_window_calls() {
         "pledge after the deadline must be rejected"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Bundle A: staged funding with milestones, weighted votes, split, bond,
+// termination and pro-rata refunds.
+// ---------------------------------------------------------------------------
+
+const CREATE_STAGED: [u8; 8] = [63, 188, 244, 115, 81, 42, 177, 193];
+const ADD_MILESTONE: [u8; 8] = [165, 18, 177, 128, 204, 172, 23, 249];
+const SUBMIT_EVIDENCE: [u8; 8] = [12, 169, 228, 194, 229, 31, 44, 39];
+const VOTE_MILESTONE: [u8; 8] = [43, 27, 71, 239, 231, 20, 102, 156];
+const FINALIZE_VOTE: [u8; 8] = [181, 176, 6, 248, 249, 134, 146, 56];
+const RELEASE_INITIAL: [u8; 8] = [151, 251, 239, 216, 141, 18, 125, 230];
+const SET_SPLIT: [u8; 8] = [133, 67, 66, 245, 114, 175, 32, 51];
+const RELEASE_TRANCHE: [u8; 8] = [156, 137, 159, 5, 80, 38, 133, 227];
+const WITHDRAW_CLAIM: [u8; 8] = [116, 25, 120, 4, 45, 166, 253, 106];
+const TERMINATE: [u8; 8] = [40, 31, 99, 52, 83, 243, 37, 201];
+const CLAIM_TERMINATION_REFUND: [u8; 8] =
+    [55, 151, 155, 139, 208, 168, 96, 108];
+const CLAIM_BOND: [u8; 8] = [173, 34, 157, 61, 45, 120, 246, 11];
+
+/// MilestoneStatus is a u8 enum; offset of `status` in MilestoneAccount.
+const MILESTONE_STATUS_OFFSET: usize = 8 + 32 + 1 + 8 + 8 + 32;
+
+fn bond_pda(campaign: &Address) -> Address {
+    to_address(Pubkey::find_program_address(&[b"bond", campaign.as_ref()], &charity_vault::ID).0)
+}
+
+fn milestone_pda(campaign: &Address, index: u8) -> Address {
+    to_address(
+        Pubkey::find_program_address(
+            &[b"milestone", campaign.as_ref(), &[index]],
+            &charity_vault::ID,
+        )
+        .0,
+    )
+}
+
+fn vote_pda(milestone: &Address, round: u8, backer: &Address) -> Address {
+    to_address(
+        Pubkey::find_program_address(
+            &[b"vote", milestone.as_ref(), &[round], backer.as_ref()],
+            &charity_vault::ID,
+        )
+        .0,
+    )
+}
+
+fn claim_pda(campaign: &Address, index: u8) -> Address {
+    to_address(
+        Pubkey::find_program_address(&[b"claim", campaign.as_ref(), &[index]], &charity_vault::ID).0,
+    )
+}
+
+fn split_pda(campaign: &Address) -> Address {
+    to_address(Pubkey::find_program_address(&[b"split", campaign.as_ref()], &charity_vault::ID).0)
+}
+
+fn vec_pubkeys(items: &[Address]) -> Vec<u8> {
+    let mut out = (items.len() as u32).to_le_bytes().to_vec();
+    for item in items {
+        out.extend_from_slice(item.as_ref());
+    }
+    out
+}
+
+fn vec_u16(items: &[u16]) -> Vec<u8> {
+    let mut out = (items.len() as u32).to_le_bytes().to_vec();
+    for item in items {
+        out.extend_from_slice(&item.to_le_bytes());
+    }
+    out
+}
+
+fn create_staged_ix(
+    creator: &Address,
+    id: u64,
+    goal: u64,
+    deadline: i64,
+    base_budget: u64,
+    initial_tranche: u64,
+    bond: u64,
+) -> Instruction {
+    let campaign = campaign_pda(creator, id);
+    let mut data = CREATE_STAGED.to_vec();
+    data.extend_from_slice(&id.to_le_bytes());
+    data.extend_from_slice(&goal.to_le_bytes());
+    data.extend_from_slice(&deadline.to_le_bytes());
+    data.extend_from_slice(&[3u8; 32]);
+    data.extend_from_slice(&base_budget.to_le_bytes());
+    data.extend_from_slice(&initial_tranche.to_le_bytes());
+    data.extend_from_slice(&bond.to_le_bytes());
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(campaign, false, true),
+            meta(vault_pda(&campaign), false, true),
+            meta(bond_pda(&campaign), false, true),
+            meta(system_program(), false, false),
+        ],
+        data,
+    )
+}
+
+fn add_milestone_ix(
+    creator: &Address,
+    campaign: &Address,
+    index: u8,
+    amount: u64,
+    deadline: i64,
+    hash: [u8; 32],
+) -> Instruction {
+    let mut data = ADD_MILESTONE.to_vec();
+    data.push(index);
+    data.extend_from_slice(&amount.to_le_bytes());
+    data.extend_from_slice(&deadline.to_le_bytes());
+    data.extend_from_slice(&hash);
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, true),
+            meta(milestone_pda(campaign, index), false, true),
+            meta(system_program(), false, false),
+        ],
+        data,
+    )
+}
+
+fn submit_evidence_ix(creator: &Address, campaign: &Address, index: u8, hash: [u8; 32]) -> Instruction {
+    let mut data = SUBMIT_EVIDENCE.to_vec();
+    data.push(index);
+    data.extend_from_slice(&hash);
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, false),
+            meta(milestone_pda(campaign, index), false, true),
+        ],
+        data,
+    )
+}
+
+fn vote_ix(backer: &Address, campaign: &Address, index: u8, round: u8, approve: bool) -> Instruction {
+    let milestone = milestone_pda(campaign, index);
+    let mut data = VOTE_MILESTONE.to_vec();
+    data.push(index);
+    data.push(if approve { 1 } else { 0 });
+    instruction(
+        vec![
+            meta(*backer, true, true),
+            meta(*campaign, false, false),
+            meta(milestone, false, true),
+            meta(ledger_pda(campaign, backer), false, false),
+            meta(vote_pda(&milestone, round, backer), false, true),
+            meta(system_program(), false, false),
+        ],
+        data,
+    )
+}
+
+fn finalize_vote_ix(caller: &Address, campaign: &Address, index: u8) -> Instruction {
+    let mut data = FINALIZE_VOTE.to_vec();
+    data.push(index);
+    instruction(
+        vec![
+            meta(*caller, true, false),
+            meta(*campaign, false, true),
+            meta(milestone_pda(campaign, index), false, true),
+        ],
+        data,
+    )
+}
+
+fn release_initial_ix(creator: &Address, campaign: &Address) -> Instruction {
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, true),
+            meta(vault_pda(campaign), false, true),
+        ],
+        RELEASE_INITIAL.to_vec(),
+    )
+}
+
+fn release_tranche_ix(creator: &Address, campaign: &Address, index: u8, duration: i64) -> Instruction {
+    let mut data = RELEASE_TRANCHE.to_vec();
+    data.push(index);
+    data.extend_from_slice(&duration.to_le_bytes());
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, true),
+            meta(milestone_pda(campaign, index), false, true),
+            meta(claim_pda(campaign, index), false, true),
+            meta(system_program(), false, false),
+        ],
+        data,
+    )
+}
+
+fn set_split_ix(creator: &Address, campaign: &Address, recipients: &[Address], shares: &[u16]) -> Instruction {
+    let mut data = SET_SPLIT.to_vec();
+    data.extend_from_slice(&vec_pubkeys(recipients));
+    data.extend_from_slice(&vec_u16(shares));
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, false),
+            meta(split_pda(campaign), false, true),
+            meta(system_program(), false, false),
+        ],
+        data,
+    )
+}
+
+fn withdraw_claim_ix(
+    caller: &Address,
+    campaign: &Address,
+    index: u8,
+    split: &Address,
+    recipients: &[Address],
+) -> Instruction {
+    let mut data = WITHDRAW_CLAIM.to_vec();
+    data.push(index);
+    let mut accounts = vec![
+        meta(*caller, true, false),
+        meta(*campaign, false, false),
+        meta(vault_pda(campaign), false, true),
+        meta(claim_pda(campaign, index), false, true),
+        meta(*split, false, false),
+    ];
+    for recipient in recipients {
+        accounts.push(meta(*recipient, false, true));
+    }
+    instruction(accounts, data)
+}
+
+fn terminate_ix(caller: &Address, campaign: &Address) -> Instruction {
+    instruction(
+        vec![
+            meta(*caller, true, false),
+            meta(*campaign, false, true),
+            meta(vault_pda(campaign), false, true),
+            meta(bond_pda(campaign), false, true),
+        ],
+        TERMINATE.to_vec(),
+    )
+}
+
+fn claim_termination_refund_ix(
+    donor: &Address,
+    campaign: &Address,
+    creator: &Address,
+) -> Instruction {
+    instruction(
+        vec![
+            meta(*donor, true, true),
+            meta(*campaign, false, true),
+            meta(ledger_pda(campaign, donor), false, true),
+            meta(vault_pda(campaign), false, true),
+            meta(*creator, false, true),
+        ],
+        CLAIM_TERMINATION_REFUND.to_vec(),
+    )
+}
+
+fn claim_bond_ix(creator: &Address, campaign: &Address) -> Instruction {
+    instruction(
+        vec![
+            meta(*creator, true, true),
+            meta(*campaign, false, false),
+            meta(bond_pda(campaign), false, true),
+        ],
+        CLAIM_BOND.to_vec(),
+    )
+}
+
+fn finalize_ix(caller: &Address, campaign: &Address) -> Instruction {
+    instruction(
+        vec![meta(*caller, true, false), meta(*campaign, false, true)],
+        FINALIZE.to_vec(),
+    )
+}
+
+#[test]
+fn staged_approve_release_stream_and_bond() {
+    let (mut svm, _p) = setup();
+    let creator = Keypair::new();
+    let donor = Keypair::new();
+    fund(&mut svm, &creator);
+    fund(&mut svm, &donor);
+
+    let id = 100;
+    let goal = 5 * SOL;
+    let base = 5 * SOL;
+    let initial = SOL;
+    let bond = SOL / 2;
+    let now = svm.get_sysvar::<Clock>().unix_timestamp;
+    let campaign = campaign_pda(&creator.pubkey(), id);
+
+    send(
+        &mut svm,
+        &[create_staged_ix(&creator.pubkey(), id, goal, now + 3_600, base, initial, bond)],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [9u8; 32])],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[add_milestone_ix(&creator.pubkey(), &campaign, 1, 2 * SOL, now + 7_200, [9u8; 32])],
+        &creator,
+        &[],
+    );
+    send(&mut svm, &[pledge_ix(&donor.pubkey(), &campaign, goal)], &donor, &[]);
+
+    let mut clock = svm.get_sysvar::<Clock>();
+    clock.unix_timestamp = now + 7_200;
+    svm.set_sysvar(&clock);
+    let caller = Keypair::new();
+    fund(&mut svm, &caller);
+    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
+    assert_eq!(campaign_data(&svm, &campaign)[105], 1, "campaign Succeeded");
+
+    // Initial tranche is released immediately.
+    let before = svm.get_balance(&creator.pubkey()).unwrap();
+    send(&mut svm, &[release_initial_ix(&creator.pubkey(), &campaign)], &creator, &[]);
+    let after = svm.get_balance(&creator.pubkey()).unwrap();
+    assert!(after >= before + initial - 10_000, "initial tranche paid");
+
+    // Milestone 0: evidence, unanimous approval, release, withdraw.
+    send(
+        &mut svm,
+        &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [5u8; 32])],
+        &creator,
+        &[],
+    );
+    send(&mut svm, &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)], &donor, &[]);
+    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    assert_eq!(
+        svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
+        3,
+        "milestone Released"
+    );
+    send(&mut svm, &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)], &creator, &[]);
+
+    let before2 = svm.get_balance(&creator.pubkey()).unwrap();
+    let creator_addr = creator.pubkey();
+    send(
+        &mut svm,
+        &[withdraw_claim_ix(&caller.pubkey(), &campaign, 0, &campaign, &[creator_addr])],
+        &caller,
+        &[],
+    );
+    let after2 = svm.get_balance(&creator.pubkey()).unwrap();
+    assert!(after2 >= before2 + 2 * SOL - 10_000, "tranche paid to creator");
+
+    // The bond is returned once the campaign is not terminated.
+    send(&mut svm, &[claim_bond_ix(&creator.pubkey(), &campaign)], &creator, &[]);
+    assert_eq!(svm.get_balance(&bond_pda(&campaign)).unwrap_or(0), 0, "bond returned");
+}
+
+#[test]
+fn staged_revision_then_terminate_refunds_pro_rata() {
+    let (mut svm, _p) = setup();
+    let creator = Keypair::new();
+    let donor_a = Keypair::new();
+    let donor_b = Keypair::new();
+    fund(&mut svm, &creator);
+    fund(&mut svm, &donor_a);
+    fund(&mut svm, &donor_b);
+
+    let id = 200;
+    let goal = 5 * SOL;
+    let now = svm.get_sysvar::<Clock>().unix_timestamp;
+    let campaign = campaign_pda(&creator.pubkey(), id);
+
+    send(
+        &mut svm,
+        &[create_staged_ix(&creator.pubkey(), id, goal, now + 3_600, 5 * SOL, SOL, SOL / 2)],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [4u8; 32])],
+        &creator,
+        &[],
+    );
+    send(&mut svm, &[pledge_ix(&donor_a.pubkey(), &campaign, 3 * SOL)], &donor_a, &[]);
+    send(&mut svm, &[pledge_ix(&donor_b.pubkey(), &campaign, 2 * SOL)], &donor_b, &[]);
+
+    let mut clock = svm.get_sysvar::<Clock>();
+    clock.unix_timestamp = now + 7_200;
+    svm.set_sysvar(&clock);
+    let caller = Keypair::new();
+    fund(&mut svm, &caller);
+    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
+    send(&mut svm, &[release_initial_ix(&creator.pubkey(), &campaign)], &creator, &[]);
+
+    // First vote fails (only donor_b rejects, approval 0%) -> Revision.
+    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [4u8; 32])], &creator, &[]);
+    send(&mut svm, &[vote_ix(&donor_b.pubkey(), &campaign, 0, 1, false)], &donor_b, &[]);
+    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    assert_eq!(
+        svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
+        2,
+        "milestone Revision"
+    );
+
+    // Second vote fails -> Rejected, campaign has a rejection.
+    warp(&mut svm);
+    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [5u8; 32])], &creator, &[]);
+    warp(&mut svm);
+    send(&mut svm, &[vote_ix(&donor_b.pubkey(), &campaign, 0, 2, false)], &donor_b, &[]);
+    warp(&mut svm);
+    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    assert_eq!(
+        svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
+        4,
+        "milestone Rejected"
+    );
+
+    // Anyone can terminate once a milestone is rejected; the bond is forfeited.
+    send(&mut svm, &[terminate_ix(&caller.pubkey(), &campaign)], &caller, &[]);
+    assert_eq!(campaign_data(&svm, &campaign)[526], 1, "campaign terminated");
+    assert_eq!(svm.get_balance(&bond_pda(&campaign)).unwrap_or(0), 0, "bond forfeited");
+
+    // Donors claim their pro-rata share of the frozen pool.
+    let pool = u64_at(&campaign_data(&svm, &campaign), 537);
+    let a_before = svm.get_balance(&donor_a.pubkey()).unwrap();
+    send(
+        &mut svm,
+        &[claim_termination_refund_ix(&donor_a.pubkey(), &campaign, &creator.pubkey())],
+        &donor_a,
+        &[],
+    );
+    let a_after = svm.get_balance(&donor_a.pubkey()).unwrap();
+    let expected_a = pool * 3 / 5;
+    assert!(
+        a_after >= a_before + expected_a - 10_000,
+        "donor A got pro-rata {a_after} vs {a_before}+~{expected_a}"
+    );
+    send(
+        &mut svm,
+        &[claim_termination_refund_ix(&donor_b.pubkey(), &campaign, &creator.pubkey())],
+        &donor_b,
+        &[],
+    );
+    assert_eq!(
+        svm.get_balance(&vault_pda(&campaign)).unwrap_or(0),
+        0,
+        "refund pool fully distributed (dust swept)"
+    );
+}
+
+#[test]
+fn staged_split_distributes_release() {
+    let (mut svm, _p) = setup();
+    let creator = Keypair::new();
+    let donor = Keypair::new();
+    let r1 = Keypair::new();
+    let r2 = Keypair::new();
+    for who in [&creator, &donor, &r1, &r2] {
+        fund(&mut svm, who);
+    }
+
+    let id = 300;
+    let now = svm.get_sysvar::<Clock>().unix_timestamp;
+    let campaign = campaign_pda(&creator.pubkey(), id);
+    send(
+        &mut svm,
+        &[create_staged_ix(&creator.pubkey(), id, 4 * SOL, now + 3_600, 4 * SOL, 0, 0)],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[set_split_ix(&creator.pubkey(), &campaign, &[r1.pubkey(), r2.pubkey()], &[6_000, 4_000])],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [2u8; 32])],
+        &creator,
+        &[],
+    );
+    send(&mut svm, &[pledge_ix(&donor.pubkey(), &campaign, 4 * SOL)], &donor, &[]);
+
+    let mut clock = svm.get_sysvar::<Clock>();
+    clock.unix_timestamp = now + 7_200;
+    svm.set_sysvar(&clock);
+    let caller = Keypair::new();
+    fund(&mut svm, &caller);
+    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
+    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [2u8; 32])], &creator, &[]);
+    send(&mut svm, &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)], &donor, &[]);
+    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    send(&mut svm, &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)], &creator, &[]);
+
+    let r1_before = svm.get_balance(&r1.pubkey()).unwrap();
+    let r2_before = svm.get_balance(&r2.pubkey()).unwrap();
+    send(
+        &mut svm,
+        &[withdraw_claim_ix(
+            &caller.pubkey(),
+            &campaign,
+            0,
+            &split_pda(&campaign),
+            &[r1.pubkey(), r2.pubkey()],
+        )],
+        &caller,
+        &[],
+    );
+    let r1_after = svm.get_balance(&r1.pubkey()).unwrap();
+    let r2_after = svm.get_balance(&r2.pubkey()).unwrap();
+    assert!(r1_after >= r1_before + (2 * SOL * 6 / 10) - 10_000, "recipient 1 got 60%");
+    assert!(r2_after >= r2_before + (2 * SOL * 4 / 10) - 10_000, "recipient 2 got 40%");
+}
+

@@ -18,7 +18,12 @@ export const VAULT_SEED = 'vault';
 export const MAX_DONORS = 12;
 
 /** 8 (discriminator) + CampaignAccount::INIT_SPACE. */
-export const CAMPAIGN_ACCOUNT_SIZE = 8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32 + 1;
+export const CAMPAIGN_ACCOUNT_SIZE =
+  8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32 + 1
+  + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 8 + 1 + 8 + 1;
+
+/** Offset of the bump byte in CampaignAccount (the Bundle A fields follow it). */
+export const CAMPAIGN_BUMP_OFFSET = 8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32;
 /** 8 (discriminator) + DonorLedgerAccount::INIT_SPACE. */
 export const DONOR_LEDGER_ACCOUNT_SIZE = 82;
 
@@ -151,7 +156,7 @@ export function decodeCampaignAccount(accountAddress: Address, data: Uint8Array)
     status: STATUS_VALUES[statusByte] ?? 'active',
     donorCount,
     donors,
-    bump: data[CAMPAIGN_ACCOUNT_SIZE - 1] ?? 0,
+    bump: data[CAMPAIGN_BUMP_OFFSET] ?? 0,
   };
 }
 

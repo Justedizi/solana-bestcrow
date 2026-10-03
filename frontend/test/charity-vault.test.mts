@@ -24,7 +24,7 @@ test('formatSol round-trips lamports', () => {
 
 // Keeps the frontend decoder in step with MAX_DONORS = 12 in the Rust program.
 test('campaign account size matches the on-chain layout', () => {
-  assert.equal(CAMPAIGN_SIZE, 492);
+  assert.equal(CAMPAIGN_SIZE, 546);
 });
 
 // The fee-payer error surfaces from the RPC plugin nested several levels deep.

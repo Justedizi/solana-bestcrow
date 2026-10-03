@@ -18,6 +18,7 @@ pub struct RefundAll<'info> {
 
 pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
     let campaign = &ctx.accounts.campaign;
+    require!(!campaign.terminated, CharityVaultError::CampaignTerminated);
     require!(
         campaign.status == CampaignStatus::Refunded,
         CharityVaultError::CampaignNotRefunded

@@ -15,6 +15,10 @@ pub struct ClaimSuccess<'info> {
 pub fn handler(ctx: Context<ClaimSuccess>) -> Result<()> {
     let campaign = &mut ctx.accounts.campaign;
     require!(
+        !campaign.staged,
+        CharityVaultError::StagedCampaignUsesMilestones
+    );
+    require!(
         campaign.status == CampaignStatus::Succeeded,
         CharityVaultError::CampaignNotSucceeded
     );

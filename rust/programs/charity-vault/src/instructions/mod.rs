@@ -4,6 +4,10 @@ pub mod create_campaign;
 pub mod finalize;
 pub mod pledge;
 pub mod refund_all;
+pub mod release;
+pub mod settle;
+pub mod staged;
+pub mod voting;
 
 pub use claim_refund::ClaimRefund;
 pub use claim_success::ClaimSuccess;
@@ -11,3 +15,7 @@ pub use create_campaign::CreateCampaign;
 pub use finalize::Finalize;
 pub use pledge::Pledge;
 pub use refund_all::RefundAll;
+pub use release::{ClaimWithdrawn, ReleaseInitial, ReleaseTranche, SetSplit, WithdrawClaim};
+pub use settle::{ClaimBond, ClaimTerminationRefund, Terminate};
+pub use staged::{AddMilestone, CreateStagedCampaign};
+pub use voting::{FinalizeVote, SubmitEvidence, VoteMilestone};

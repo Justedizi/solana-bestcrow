@@ -1,13 +1,28 @@
-FROM node:22-bookworm-slim
+# syntax=docker/dockerfile:1
 
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
-
-COPY --chown=node:node package.json package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-COPY --chown=node:node . .
-RUN chown node:node /app
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+ARG NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID=74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG
+ENV NEXT_PUBLIC_SOLANA_RPC_URL=$NEXT_PUBLIC_SOLANA_RPC_URL
+ENV NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID=$NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
 
+FROM node:22-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
 USER node
 EXPOSE 3000
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+CMD ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]

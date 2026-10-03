@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useClient } from '@solana/react';
 
+import { Mark } from './mark';
 import { formatSol, getCampaigns, type Campaign } from './lib/charity-vault';
 import type { AppClient } from './providers';
 
@@ -11,6 +12,12 @@ function statusLabel(campaign: Campaign): string {
   if (campaign.status === 'Succeeded') return 'Goal reached';
   if (campaign.status === 'Refunded') return 'Refunding';
   return campaign.deadline * 1000 <= Date.now() ? 'Awaiting finalize' : 'Funding open';
+}
+
+function statusClass(campaign: Campaign): string {
+  if (campaign.status === 'Succeeded') return 'done';
+  if (campaign.status === 'Refunded') return 'refunded';
+  return campaign.deadline * 1000 <= Date.now() ? '' : 'active';
 }
 
 export default function Home() {
@@ -39,15 +46,16 @@ export default function Home() {
       <section className="hero">
         <div className="shell hero-grid">
           <div>
-            <label>— THE FUTURE OF GIVING IS OPEN</label>
+            <label>— CHARITY CROWDFUNDING WITHOUT THE MIDDLEMAN</label>
             <h1>
               Give directly.
               <br />
               <i>Make it count.</i>
             </h1>
             <p>
-              A new way to fund what matters. Your contribution goes into a transparent on-chain vault,
-              with clear goals and a guaranteed refund if the campaign falls short.
+              For <b>small charities and their donors</b>. Today a platform holds your money, takes a cut, and can
+              freeze the campaign. Here your contribution goes into a transparent on-chain vault with a clear goal and
+              an enforceable deadline — and if the campaign falls short, every donor is refunded, automatically.
             </p>
             <div className="actions">
               <Link className="button dark" href="/campaign/new">
@@ -62,18 +70,25 @@ export default function Home() {
                 <b>01</b> No middleman
               </span>
               <span>
-                <b>02</b> Clear conditions
+                <b>02</b> Rules, not operators
               </span>
               <span>
-                <b>03</b> On-chain proof
+                <b>03</b> One-tx refunds
+              </span>
+            </div>
+            <div className="actions" style={{ marginTop: 26 }}>
+              <span className="sol-badge">
+                <i /> Built on Solana
               </span>
             </div>
           </div>
           <div className="art">
             <div className="rings" />
-            <strong>✳</strong>
-            <em>TRANSPARENCY</em>
-            <em>DIRECT IMPACT</em>
+            <div className="mark">
+              <Mark />
+            </div>
+            <em>NO CUSTODY</em>
+            <em>NO FEE</em>
           </div>
         </div>
       </section>
@@ -110,7 +125,7 @@ export default function Home() {
               return (
                 <Link className="card" href={`/campaign/${campaign.address}`} key={campaign.address}>
                   <div className="card-top">
-                    <small className={label === 'Goal reached' ? 'done' : ''}>{label}</small>
+                    <small className={statusClass(campaign)}>{label}</small>
                     <b>↗</b>
                   </div>
                   <h3>Campaign #{campaign.campaignId.toString()}</h3>
@@ -133,7 +148,9 @@ export default function Home() {
 
       <section className="manifesto">
         <div className="shell">
-          <b>✳</b>
+          <b>
+            <Mark />
+          </b>
           <h2>
             The promise is simple:
             <br />
