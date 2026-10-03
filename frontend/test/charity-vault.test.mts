@@ -26,3 +26,30 @@ test('formatSol round-trips lamports', () => {
 test('campaign account size matches the on-chain layout', () => {
   assert.equal(CAMPAIGN_SIZE, 492);
 });
+
+// The fee-payer error surfaces from the RPC plugin nested several levels deep.
+// These lock in the translation a user actually sees.
+import { describeSendError } from '../app/lib/send-campaign.ts';
+
+function nested(codes: number[], message = 'outer'): unknown {
+  let node: unknown = { name: 'SolanaError', message, context: { __code: codes[codes.length - 1] } };
+  for (let i = codes.length - 2; i >= 0; i -= 1) {
+    node = { name: 'SolanaError', message: 'wrapper', context: { __code: codes[i] }, cause: node };
+  }
+  return node;
+}
+
+test('describeSendError explains an empty fee payer', () => {
+  const message = describeSendError(nested([11, 5663037, 7050003]));
+  assert.match(message, /no devnet SOL/);
+  assert.match(message, /faucet\.solana\.com/);
+});
+
+test('describeSendError explains a missing program', () => {
+  assert.match(describeSendError(nested([7050004])), /not deployed/);
+});
+
+test('describeSendError falls back to the original message', () => {
+  assert.equal(describeSendError(new Error('boom')), 'boom');
+  assert.equal(describeSendError('nope'), 'Transaction failed');
+});
