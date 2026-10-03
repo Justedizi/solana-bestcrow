@@ -46,6 +46,12 @@ export const config = {
     const raw = str('DB_PATH', './data/bestcrow.db');
     return raw === ':memory:' ? raw : resolve(here, '..', raw);
   })(),
+  accounts: {
+    origin: str('APP_ORIGIN', 'http://localhost:3000'),
+    sessionTtlSeconds: Math.max(60, int('SESSION_TTL_SECONDS', 86_400)),
+    challengeTtlSeconds: Math.max(30, Math.min(600, int('WALLET_CHALLENGE_TTL_SECONDS', 300))),
+    authAttemptsPerMinute: Math.max(1, int('AUTH_ATTEMPTS_PER_MINUTE', 20)),
+  },
   indexer: {
     enabled: bool('INDEXER_ENABLED', true),
     pollIntervalMs: int('POLL_INTERVAL_MS', 15_000),

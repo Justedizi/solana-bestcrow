@@ -36,7 +36,14 @@ export function errorHandler(
     res.status(422).json({ error: 'Validation failed', details: error.issues });
     return;
   }
-  console.error('[api] unhandled error:', error);
-  const message = error instanceof Error ? error.message : 'Internal server error';
-  res.status(500).json({ error: message });
+  if (error instanceof SyntaxError && 'status' in error && error.status === 400) {
+    res.status(400).json({ error: 'Invalid JSON body' });
+    return;
+  }
+  if (error instanceof Error && 'type' in error && error.type === 'entity.too.large') {
+    res.status(413).json({ error: 'JSON body exceeds the 256kb limit' });
+    return;
+  }
+  console.error('[api] unhandled error:', error instanceof Error ? error.name : 'Unknown error');
+  res.status(500).json({ error: 'Internal server error' });
 }

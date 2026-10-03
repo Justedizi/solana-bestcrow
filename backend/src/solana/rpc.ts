@@ -6,7 +6,7 @@ export const rpc = createSolanaRpc(config.rpcUrl);
 export interface RawAccount {
   address: Address;
   owner: Address;
-  lamports: number;
+  lamports: bigint;
   data: Uint8Array;
 }
 
@@ -30,7 +30,7 @@ export async function getProgramAccounts(dataSize: number): Promise<RawAccount[]
   return accounts.map((entry) => ({
     address: entry.pubkey,
     owner: entry.account.owner,
-    lamports: Number(entry.account.lamports),
+    lamports: entry.account.lamports,
     data: readData(entry.account.data as unknown as readonly [string, string]),
   }));
 }
@@ -41,7 +41,7 @@ export async function getAccount(addressValue: Address): Promise<RawAccount | nu
   return {
     address: addressValue,
     owner: response.value.owner,
-    lamports: Number(response.value.lamports),
+    lamports: response.value.lamports,
     data: readData(response.value.data as unknown as readonly [string, string]),
   };
 }
@@ -73,7 +73,7 @@ export interface TransactionLogs {
 export async function getTransactionLogs(signature: string): Promise<TransactionLogs | null> {
   const response = await rpc
     .getTransaction(signature as Signature, {
-      maxSupportedTransactionVersion: 0,
+      maxSupportedTransactionVersion: 1,
       encoding: 'json',
       commitment: 'confirmed',
     })
@@ -103,7 +103,7 @@ export async function getMultipleAccounts(addresses: Address[]): Promise<Array<R
       results.push({
         address: owner,
         owner: value.owner,
-        lamports: Number(value.lamports),
+        lamports: value.lamports,
         data: readData(value.data as unknown as readonly [string, string]),
       });
     });
@@ -115,7 +115,7 @@ export async function getSlot(): Promise<number> {
   return Number(await rpc.getSlot({ commitment: 'confirmed' }).send());
 }
 
-export async function getVaultBalance(vault: Address): Promise<number> {
+export async function getVaultBalance(vault: Address): Promise<bigint> {
   const info = await getAccount(vault);
-  return info?.lamports ?? 0;
+  return info?.lamports ?? 0n;
 }

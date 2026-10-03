@@ -4,6 +4,7 @@ import {
   decodeCampaignAccount,
   decodeDonorLedger,
   getVaultPda,
+  PROGRAM_ID,
   type CampaignAccount,
 } from './program.js';
 import {
@@ -79,6 +80,7 @@ export class Indexer {
     const accounts = await getProgramAccounts(CAMPAIGN_ACCOUNT_SIZE);
     const decoded: CampaignAccount[] = [];
     for (const account of accounts) {
+      if (account.owner !== PROGRAM_ID) continue;
       const campaign = decodeCampaignAccount(account.address, account.data);
       if (campaign) decoded.push(campaign);
     }
@@ -116,6 +118,7 @@ export class Indexer {
     const accounts = await getProgramAccounts(DONOR_LEDGER_ACCOUNT_SIZE);
     let changed = 0;
     for (const account of accounts) {
+      if (account.owner !== PROGRAM_ID) continue;
       const ledger = decodeDonorLedger(account.address, account.data);
       if (!ledger) continue;
       this.store.upsertDonor({

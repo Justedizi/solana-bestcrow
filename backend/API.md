@@ -1,6 +1,6 @@
 # Bestcrow Backend API
 
-Read-only indexer + helper API for the **Charity Vault** Solana program. The
+Chain-sector indexer + helper API for the **Charity Vault** Solana program. The
 indexer watches the chain and serves fast, decoded data so the web client does
 not have to query `getProgramAccounts` for every page. It is a **read model**:
 the on-chain program is the only authority over funds and state.
@@ -10,6 +10,15 @@ the on-chain program is the only authority over funds and state.
 - Amounts are **lamports** as decimal **strings** (`u64`); `*Sol` fields give the
   human-readable SOL value alongside.
 - Addresses are base58 strings.
+
+Registration, sessions, Phantom linking and SOL payment intents are documented in
+the **[Accounts API](docs/ACCOUNTS.md)**. `PUT` metadata requires a session whose
+account has the verified campaign-creator wallet.
+
+`GET /api/chain/config` supplies the public network (`cluster`, `rpcUrl`,
+`programId`), Wallet Standard chain (`walletChain`, null on localnet), supported
+versions `[0,1]`, `signing: "wallet"` and `submission: "frontend"`. Use this to
+check that the frontend and backend target the same network.
 
 ## Conventions
 
@@ -24,6 +33,8 @@ Every error is JSON:
 | Status | Meaning |
 | --- | --- |
 | `400` | Bad/missing query parameter |
+| `401` | Missing or expired account session |
+| `403` | Account has no verified creator wallet |
 | `404` | Resource not found |
 | `409` | Conflict (e.g. description hash mismatch) |
 | `422` | Request body failed validation (`details` has Zod issues) |
@@ -49,8 +60,8 @@ Service banner.
 ```json
 {
   "name": "bestcrow-backend",
-  "description": "Indexer and REST API for the Bestcrow / Charity Vault Solana program",
-  "docs": "/api/program",
+  "sectors": ["chain", "accounts"],
+  "config": "/api/chain/config",
   "health": "/api/health"
 }
 ```
@@ -277,6 +288,8 @@ Off-chain metadata (title, description, site, image, rewards). `404` if none.
 ### `PUT /api/campaigns/:address/metadata`
 
 Store/update metadata. `Content-Type: application/json`, max body 256 KB.
+Requires a Bearer session with the verified creator wallet. Omitted fields keep
+their previous values.
 
 If you send a `description`, its **SHA-256 must equal the campaign's on-chain
 `desc_hash`**; otherwise the request fails `409`. On success `verified` is
@@ -285,6 +298,7 @@ If you send a `description`, its **SHA-256 must equal the campaign's on-chain
 ```bash
 curl -X PUT localhost:4000/api/campaigns/5U3CJYx…/metadata \
   -H 'content-type: application/json' \
+  -H 'authorization: Bearer YOUR_SESSION_TOKEN' \
   -d '{"title":"Warm meals","description":"exact on-chain text"}'
 ```
 
@@ -334,10 +348,12 @@ Every response has this shape:
 | `GET /api/instructions/refund-all/:campaign` | `caller` (path: campaign address) | `refund_all` |
 
 Notes:
-- `campaignId`, `goal`, `deadline`, `amount` are unsigned-integer strings.
+- `campaignId`, `goal`, `amount` are `u64` decimal strings; goals and pledges are
+  positive. `deadline` is an `i64` Unix timestamp string and must be in the future.
 - `descHash` is 32 hex-encoded bytes; omit it to use all-zero bytes.
-- `refund-all` pulls the donor list from the indexer and appends two accounts per
-  donor. The program caps a campaign at 12 donors so this fits one transaction.
+- `refund-all` reads and validates the actual campaign account and uses its donor
+  order. It appends two accounts per donor, including previously closed ledgers;
+  the program caps campaigns at 12 donors. RPC failures return `503`.
 - A client must still, for each account, set the correct signer/writable flags
   as returned, add the fee payer and a recent blockhash, sign, and send.
 
