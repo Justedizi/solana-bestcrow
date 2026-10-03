@@ -101,7 +101,14 @@ export function instructionsRouter(store: Store): Router {
       const campaign = store.getCampaign(campaignAddress);
       if (!campaign) throw notFound('Campaign not found');
       const donors = store.listDonors(campaignAddress).map((row) => row.donor as Address);
-      res.json(await refundAllPlan({ caller, campaign: campaignAddress, donors }));
+      res.json(
+        await refundAllPlan({
+          caller,
+          campaign: campaignAddress,
+          creator: campaign.creator as Address,
+          donors,
+        }),
+      );
     }),
   );
 

@@ -16,7 +16,7 @@ const encoder = new TextEncoder();
 const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
 const base64 = getBase64Encoder();
-const MAX_DONORS = 16;
+const MAX_DONORS = 12;
 export const CAMPAIGN_SIZE = 8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + MAX_DONORS * 32 + 1;
 const LEDGER_SIZE = 8 + 32 + 32 + 8 + 1 + 1;
 const MAX_U64 = (1n << 64n) - 1n;
@@ -183,5 +183,5 @@ export async function claimRefundIx(donor: Address, campaign: Address) {
 export async function refundAllIx(caller: Address, campaign: Campaign) {
   const remaining: Meta[] = [];
   for (const donor of campaign.donors) remaining.push(writable(await donorPda(campaign.address, donor)), writable(donor));
-  return instruction('refund_all', [signer(caller), writable(campaign.address), writable(await vaultPda(campaign.address)), ...remaining]);
+  return instruction('refund_all', [signer(caller), writable(campaign.address), writable(await vaultPda(campaign.address)), writable(campaign.creator), ...remaining]);
 }
