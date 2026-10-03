@@ -39,6 +39,8 @@ for HTTP routing. Tests live in `backend/test/`.
 
 The generated client and IDL use the declared Bestcrow program ID. The backend
 also accepts `STAGEGATE_PROGRAM_ID` so a deployment can configure its actual ID.
+The backend's `.npmrc` installs its local `@bestcrow/client` dependency as a
+package copy, so clean CI and Docker builds resolve its Solana dependencies.
 
 ## Routes
 
