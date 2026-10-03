@@ -1,8 +1,14 @@
-# Agent instructions: local Solana MCP
+# Bestcrow agent setup and development instructions
 
-**The PDFs in `docs/` have the highest project priority.** Read them first and follow the root [AGENTS.md](../AGENTS.md) for source precedence and conflicts. [CONTEXT.md](CONTEXT.md) is a secondary summary; setup guidance, skills, and MCP documentation must fit the PDF requirements. Run all commands below from the repository root.
+**The PDFs in `docs/` have the highest project priority.** Read them first and follow [AGENTS.md](AGENTS.md) for source precedence and conflicts. [CONTEXT.md](CONTEXT.md) is a secondary summary; setup guidance, skills, and MCP documentation must fit the PDF requirements. Run all commands below from the repository root.
 
 Use the MCP setup already in this repository. Do not install a new server package or edit a user's global MCP config unless the existing launch path fails and the user asks for that change.
+
+## Current work
+
+Bestcrow now targets startup/prototype crowdfunding with staged releases, backer voting, refunds of remaining escrow, and optional rewards. Read [PROJECT.md](PROJECT.md) after the PDFs. Its numerical voting and budget examples are proposals, not installed protocol behavior.
+
+The local `trustless` MCP target is a freelance escrow reference. Its client approval and cancellation rules are not a crowdfunding implementation. Do not claim that a passing reference build proves our campaign model.
 
 ## Quick start
 
@@ -44,5 +50,15 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | sh mcp/start.sh
 The response should list `project_overview`, `search_project`, `read_project_file`, and `run_local_check`. The latter allows only `cargo_fmt`, `cargo_check`, `cargo_test`, and `anchor_build` in the two Anchor projects. A check can fail because of existing source issues; report its exit code and output rather than treating a successful MCP call as a passing build.
 
 Use `solana_docs` for current Solana and Anchor documentation. Use `surfpool` for local network simulation. Keep local network state separate from devnet or mainnet. Do not access wallet keys, deploy, sign, send transactions, or change RPC state through the local project MCP; those actions are intentionally not exposed.
+
+## Verify crowdfunding behavior when implemented
+
+Identify the campaign's actual source and test commands first; a canonical crowdfunding program has not been established in this checkout. Use local simulations for deadlines, voting and accounting before any authorized devnet demonstration.
+
+Check successful and failed fundraising, exactly-once initial release, contribution-weighted eligibility, vote boundaries/deadlines, rejected and revised milestones, creator disappearance, approved tranche limits, and pro-rata claims from a fixed termination snapshot. Test unauthorized recipients/releases, duplicate ballots and refunds, and attempts to alter funded terms.
+
+Keep released, refundable, reward-reserved and fee amounts distinct. Show that they cannot exceed funded assets or spend the same unit twice. Use a known test asset and label simulated supplier events; a reward claim or API response is not proof of delivered merchandise.
+
+Link each demo check to the applicable PDF requirement: criteria p.3 requires on-chain enforcement and confirmed transactions; pp.2–3 require a complete live flow. Record the command, outcome and material gaps rather than treating tool connectivity as passing program tests.
 
 See [mcp/README.md](../mcp/README.md) for the tool list and launcher details.
