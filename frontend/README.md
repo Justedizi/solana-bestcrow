@@ -4,6 +4,8 @@ Next.js App Router project with a backend health view and a MetaDAO Pass/Fail
 trading screen at `/campaign/<campaign-address>/market`. The home page accepts
 a campaign address. The screen supports Phantom and Solflare wallets, buying
 and selling in either conditional market, and redemption after finalization.
+The backend status checks `/api/health` every five seconds and updates after a
+backend restart without reloading the page.
 
 The structure is class first for application logic:
 
