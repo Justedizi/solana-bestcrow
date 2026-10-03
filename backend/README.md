@@ -57,6 +57,9 @@ npm test
 
 ## API
 
+Full reference: **[API.md](API.md)** (endpoints, query params, response shapes,
+error codes, and instruction plans).
+
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Liveness, last indexed slot/signature |
