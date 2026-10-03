@@ -283,3 +283,41 @@ A creator who can extend the deadline forever can trap donations in limbo — do
 ### What remains unverifiable (unchanged)
 
 Whether the charity does the work after a successful campaign, and who the charity is. The refund side is fully trustless; the delivery side stays the honest boundary already stated in §5.
+
+---
+
+## 16. MetaDAO & this project (mentor directive)
+
+### How MetaDAO actually works (futarchy, not voting)
+
+- Futarchy = "vote on values, bet on beliefs" (Hanson, 2000). MetaDAO is the only production implementation on Solana: proposals are decided by prediction markets, not token votes.
+- A proposal wraps an executable Solana instruction. Opening it spins up **two conditional vaults** (base + quote token). Depositing into a vault mints **pass- and fail-conditional tokens 1:1** (deposit 10 USDC → 10 USDC-on-pass + 10 USDC-on-fail).
+- **Two constant-product AMMs** trade the conditional pairs; a hardened Uniswap-V2-style **TWAP oracle** accumulates price × Δtime on every swap.
+- At finalization, autocrat compares pass-TWAP vs fail-TWAP. Higher side wins: winning vault finalizes (winners redeem 1:1), **losing tokens expire worthless** (value flows to winning traders), and on a pass verdict autocrat **executes the wrapped instruction as signer**. Decision = action, atomically.
+- Stack: `autocrat` + `conditional_vault` + `amm` (+ launchpad); TypeScript SDK `@metadaoproject/futarchy-sdk`; mainnet v0.6 (`FUTARELBf…`), with real treasury decisions running through it.
+
+### The honest comparison — where we win, where we lose
+
+| Dimension | MetaDAO | Our Charity Vault | Stronger |
+| --- | --- | --- | --- |
+| Problem class | Governance: decide what a DAO does | Payment escrow: hold & conditionally release | different categories — not competitors |
+| Judging worthiness | Market aggregates dispersed beliefs | Deliberately cannot judge (§5) | **MetaDAO** |
+| Losing side | Tokens → zero; value flows to winning traders | Every donor refunded exactly, atomically | **Ours** |
+| Token requirement | Needs tradeable base + quote mints | Plain SOL, no token | **Ours** |
+| Oracle surface | TWAP skews on thin markets (their extra guards exist for a reason) | No oracle: deterministic deadline + program counter | **Ours** |
+| Complexity / audit surface | 3 programs, mints, AMMs | 1 program, 3 PDAs | **Ours** |
+| Maturity | Mainnet, live treasury use | 24h prototype | **MetaDAO** |
+
+The honest sentence: **we are not "better than MetaDAO".** We implement a deterministic, tokenless subset of the same conditional-vault primitive MetaDAO industrialized — specialized for a domain where markets are unusable (charities have no token, markets would be thin and skewable, and donors must be made whole, not liquidated into traders' profits). MetaDAO, not us, answers the hardest question in our §5 boundary: *is this charity worthy?* Say that out loud in the pitch — it's ecosystem awareness, and it makes our trust-boundary slide stronger, not weaker.
+
+### Integration tiers
+
+- **Tier 0 — this weekend, zero risk (do this):** adopt the vocabulary. Deck slide 5 + `/how-it-works`: "Our campaign vault is a **deterministic conditional vault** — the MetaDAO primitive with the market stripped out: condition = (deadline passed ∧ goal unmet) instead of a TWAP comparison." Booth talking point: one paragraph, cost ~0, shows ecosystem fluency.
+- **Tier 1 — stretch, slide-only (unless everything ships by Sun 17:00):** a mini futarchy gate on `claim_success`: after the goal is met, a small two-outcome market (release vs refund) decides. Requires minting claim-style instruments + a price mechanism we don't have. Do NOT attempt during the window.
+- **Tier 2 — roadmap (replaces "staked arbitrator" in the arbitration module):** post-hackathon, USDC version, `claim_success` gated by a MetaDAO-style market: donors and observers trade "release / refund" positions; the verdict executes. This is the intellectually correct upgrade of our weakest guarantee.
+
+### Why we do NOT integrate the actual MetaDAO programs this weekend
+
+- We are raw lamports; MetaDAO is SPL-token plumbing + a 3-program dependency chain. Deploying their stack to devnet ourselves is a multi-hour detour with zero scoring weight.
+- Thin charity markets make TWAP manipulation cheap — it would *weaken* our trust story, not strengthen it.
+- §11's rule applies: framework/integration migration on a 24h clock is a pure time sink. Completeness (25%) is scored on the working create→pledge→finalize→refund_all loop.
