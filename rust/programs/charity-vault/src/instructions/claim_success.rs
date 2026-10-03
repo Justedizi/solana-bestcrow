@@ -27,7 +27,8 @@ pub fn handler(ctx: Context<ClaimSuccess>) -> Result<()> {
     // runtime.
     let amount = ctx.accounts.vault.lamports();
     if amount > 0 {
-        let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign.key().as_ref(), &[ctx.bumps.vault]];
+        let campaign_key = campaign.key();
+        let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign_key.as_ref(), &[ctx.bumps.vault]];
         system_program::transfer(
             CpiContext::new_with_signer(
                 system_program::ID,

@@ -40,7 +40,7 @@ pub mod charity_vault {
     pub fn claim_refund(ctx: Context<ClaimRefund>) -> Result<()> {
         claim_refund::handler(ctx)
     }
-    pub fn refund_all(ctx: Context<RefundAll>) -> Result<()> {
+    pub fn refund_all<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
         refund_all::handler(ctx)
     }
 }

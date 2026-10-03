@@ -64,7 +64,7 @@ function buildCampaign(options: {
   const donors = options.donors ?? [DONOR, DONOR_TWO];
   data[106] = donors.length;
   donors.forEach((donor, index) => writeAddress(data, 107 + index * 32, donor));
-  data[619] = 254;
+  data[CAMPAIGN_ACCOUNT_SIZE - 1] = 254;
   return data;
 }
 

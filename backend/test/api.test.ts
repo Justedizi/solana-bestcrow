@@ -5,6 +5,7 @@ import { type Address } from '@solana/kit';
 import { createServer } from '../src/api/server.js';
 import { Store } from '../src/db/index.js';
 import { sha256, toHex } from '../src/solana/program.js';
+import { CAMPAIGN_ACCOUNT_SIZE } from '../src/solana/program.js';
 
 const CREATOR = 'F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3' as Address;
 const CAMPAIGN_ONE = 'So11111111111111111111111111111111111111112' as Address;
@@ -102,7 +103,7 @@ test('GET /api/health', async () => {
 test('GET /api/program exposes discriminators', async () => {
   const { status, body } = await get('/api/program');
   assert.equal(status, 200);
-  assert.equal(body.accounts.campaign.size, 620);
+  assert.equal(body.accounts.campaign.size, CAMPAIGN_ACCOUNT_SIZE);
   assert.equal(body.instructions.pledge, 'eb2f9cfe0058d48e');
 });
 

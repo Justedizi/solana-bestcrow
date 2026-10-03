@@ -113,7 +113,7 @@ The on-chain program remains the sole authority over funds and state transitions
 
 - Off-chain metadata is only as trustworthy as the hash check: a `verified: true`
   record means the stored description matches the on-chain SHA-256 commitment.
-- The program caps a campaign at 16 donors, so `refund_all` fits in one legacy
+- The program caps a campaign at 12 donors, so `refund_all` fits in one legacy
   transaction.
 - Event reconstruction depends on RPC log retention (`SIGNATURE_SCAN_LIMIT`);
   account state is always re-synced in full each poll.

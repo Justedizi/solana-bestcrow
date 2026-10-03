@@ -17,7 +17,7 @@ pub struct RefundAll<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<RefundAll>) -> Result<()> {
+pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
     let campaign = &ctx.accounts.campaign;
     require!(
         campaign.status == CampaignStatus::Refunded,
@@ -30,7 +30,8 @@ pub fn handler(ctx: Context<RefundAll>) -> Result<()> {
     );
 
     let vault = ctx.accounts.vault.to_account_info();
-    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign.key().as_ref(), &[ctx.bumps.vault]];
+    let campaign_key = campaign.key();
+    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign_key.as_ref(), &[ctx.bumps.vault]];
 
     for index in 0..count {
         let ledger_info = &ctx.remaining_accounts[index * 2];

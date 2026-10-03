@@ -38,7 +38,8 @@ pub fn handler(ctx: Context<ClaimRefund>) -> Result<()> {
     // Pay the donation from the vault PDA. The ledger is closed by the
     // `close = donor` constraint after this handler returns, returning its rent
     // to the donor too.
-    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign.key().as_ref(), &[ctx.bumps.vault]];
+    let campaign_key = campaign.key();
+    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign_key.as_ref(), &[ctx.bumps.vault]];
     system_program::transfer(
         CpiContext::new_with_signer(
             system_program::ID,

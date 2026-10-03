@@ -9,7 +9,7 @@ Modular Anchor program for the charity crowdfunding flow in `../EXECUTION_PLAN.m
 
 Funds are held in a program-owned vault PDA. The creator can claim only after
 `Succeeded`; donors can claim only after `Refunded`. `refund_all` processes the
-fixed donor registry (maximum 16 donors) in one transaction and validates every
+fixed donor registry (maximum 12 donors) in one transaction and validates every
 ledger PDA before paying it.
 
 `claim_success` and `refund_all` sweep the vault's rent reserve back to the

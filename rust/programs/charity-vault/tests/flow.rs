@@ -23,7 +23,10 @@ const REFUND_ALL: [u8; 8] = [174, 87, 222, 126, 23, 59, 189, 155];
 const SOL: u64 = 1_000_000_000;
 /// Rent-exempt reserve for a zero-data account (the account-overhead portion).
 const RENT: u64 = 890_880;
-const CAMPAIGN_SIZE: usize = 620;
+/// Derived from the on-chain `MAX_DONORS` so a constant change can never silently
+/// desync the test layout from the program (and the TS mirrors in backend/frontend).
+const CAMPAIGN_SIZE: usize =
+    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + charity_vault::constants::MAX_DONORS * 32 + 1;
 const LEDGER_SIZE: usize = 8 + 32 + 32 + 8 + 1 + 1;
 
 fn program_id() -> Address {
@@ -107,6 +110,19 @@ fn send(svm: &mut LiteSVM, ixs: &[Instruction], payer: &Keypair, extra: &[&Keypa
     );
     svm.send_transaction(tx)
         .expect("transaction should succeed");
+}
+
+/// Submit a transaction and report whether it succeeded, for negative-path tests.
+fn send_ok(svm: &mut LiteSVM, ixs: &[Instruction], payer: &Keypair, extra: &[&Keypair]) -> bool {
+    let mut signers: Vec<&Keypair> = vec![payer];
+    signers.extend_from_slice(extra);
+    let tx = Transaction::new_signed_with_payer(
+        ixs,
+        Some(&payer.pubkey()),
+        &signers,
+        svm.latest_blockhash(),
+    );
+    svm.send_transaction(tx).is_ok()
 }
 
 fn campaign_data(svm: &LiteSVM, campaign: &Address) -> Vec<u8> {
@@ -422,5 +438,101 @@ fn success_flow_releases_to_creator_and_batch_refunds() {
             .unwrap()
             .data
             .len()
+    );
+}
+
+#[test]
+fn rejects_invalid_terms_and_out_of_window_calls() {
+    let (mut svm, _program) = setup();
+    let creator = Keypair::new();
+    let donor = Keypair::new();
+    fund(&mut svm, &creator);
+    fund(&mut svm, &donor);
+    let now = svm.get_sysvar::<Clock>().unix_timestamp;
+
+    // create_campaign: goal must be positive and the deadline must be in the future.
+    assert!(
+        !send_ok(
+            &mut svm,
+            &[create_ix(&creator.pubkey(), 10, 0, now + 3_600)],
+            &creator,
+            &[],
+        ),
+        "zero goal must be rejected"
+    );
+    assert!(
+        !send_ok(
+            &mut svm,
+            &[create_ix(&creator.pubkey(), 10, SOL, now - 1)],
+            &creator,
+            &[],
+        ),
+        "a past deadline must be rejected"
+    );
+
+    let id = 11;
+    let campaign = campaign_pda(&creator.pubkey(), id);
+    send(
+        &mut svm,
+        &[create_ix(&creator.pubkey(), id, 5 * SOL, now + 3_600)],
+        &creator,
+        &[],
+    );
+
+    // finalize before the deadline must fail.
+    assert!(
+        !send_ok(
+            &mut svm,
+            &[instruction(
+                vec![
+                    meta(creator.pubkey(), true, false),
+                    meta(campaign, false, true),
+                ],
+                FINALIZE.to_vec(),
+            )],
+            &creator,
+            &[],
+        ),
+        "finalize before deadline must be rejected"
+    );
+
+    // claim_success before the campaign reaches Succeeded must fail.
+    assert!(
+        !send_ok(
+            &mut svm,
+            &[instruction(
+                vec![
+                    meta(creator.pubkey(), true, true),
+                    meta(campaign, false, true),
+                    meta(vault_pda(&campaign), false, true),
+                ],
+                CLAIM_SUCCESS.to_vec(),
+            )],
+            &creator,
+            &[],
+        ),
+        "claim_success on an active campaign must be rejected"
+    );
+
+    // A pledge inside the window succeeds.
+    send(
+        &mut svm,
+        &[pledge_ix(&donor.pubkey(), &campaign, SOL)],
+        &donor,
+        &[],
+    );
+
+    // Once the deadline passes, further pledges must fail.
+    let mut clock = svm.get_sysvar::<Clock>();
+    clock.unix_timestamp = now + 7_200;
+    svm.set_sysvar(&clock);
+    assert!(
+        !send_ok(
+            &mut svm,
+            &[pledge_ix(&donor.pubkey(), &campaign, SOL)],
+            &donor,
+            &[],
+        ),
+        "pledge after the deadline must be rejected"
     );
 }

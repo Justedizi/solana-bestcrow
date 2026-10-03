@@ -27,13 +27,14 @@
 
 import {
   AccountRole,
-  appendTransactionMessageInstruction,
+  appendTransactionMessageInstructions,
   createKeyPairSignerFromBytes,
   createSolanaRpc,
   createTransactionMessage,
   generateKeyPairSigner,
   getBase64EncodedWireTransaction,
   getSignatureFromTransaction,
+  pipe,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
@@ -65,7 +66,8 @@ const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const deadlineSecs = Number(process.env.DEMO_DEADLINE_SECS || 30);
 const donorCount = Number(process.env.DEMO_DONORS || 3);
 const fundLamports = BigInt(process.env.DEMO_FUND_LAMPORTS || '500000000');
-const mode = (process.env.DEMO_MODE || 'both') as 'both' | 'refund' | 'success';
+const mode = (process.env.DEMO_MODE || 'both') as 'both' | 'refund' | 'success' | 'seed';
+const seedDeadlineSecs = Number(process.env.DEMO_SEED_DEADLINE_SECS || 86_400);
 const payerPath = resolve(process.env.DEMO_KEYPAIR || `${homedir()}/.config/solana/id.json`);
 const wantAirdrop = ['1', 'true', 'yes'].includes((process.env.DEMO_AIRDROP || '').toLowerCase());
 
@@ -131,15 +133,16 @@ const concat = (...parts: Uint8Array[]): Uint8Array => {
 type IxAccount = NonNullable<Instruction['accounts']>[number];
 const writable = (address: Address): IxAccount => ({ address, role: AccountRole.WRITABLE });
 const readonly = (address: Address): IxAccount => ({ address, role: AccountRole.READONLY });
+// In every demo instruction the only signer is also the transaction fee payer, so
+// the signature is supplied by setTransactionMessageFeePayerSigner. The account
+// meta only needs the signer role bit set.
 const signerWritable = (signer: TransactionSigner): IxAccount => ({
   address: signer.address,
   role: AccountRole.WRITABLE_SIGNER,
-  signer,
 });
 const signerReadonly = (signer: TransactionSigner): IxAccount => ({
   address: signer.address,
   role: AccountRole.READONLY_SIGNER,
-  signer,
 });
 
 const ix = (accounts: IxAccount[], data: Uint8Array): Instruction => ({
@@ -215,12 +218,12 @@ function transferIx(from: TransactionSigner, to: Address, lamports: bigint): Ins
 
 async function send(instructions: Instruction[], feePayer: TransactionSigner): Promise<Signature> {
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
-  let message = createTransactionMessage({ version: 0 });
-  message = setTransactionMessageFeePayerSigner(feePayer, message);
-  message = setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message);
-  for (const instruction of instructions) {
-    message = appendTransactionMessageInstruction(instruction, message);
-  }
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayerSigner(feePayer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+    (m) => appendTransactionMessageInstructions(instructions, m),
+  );
   const signed = await signTransactionMessageWithSigners(message);
   const signature = getSignatureFromTransaction(signed);
   await rpc
@@ -245,7 +248,8 @@ async function confirm(signature: Signature): Promise<void> {
 }
 
 async function balance(address: Address): Promise<bigint> {
-  return rpc.getBalance(address, { commitment: 'confirmed' }).send();
+  const { value } = await rpc.getBalance(address, { commitment: 'confirmed' }).send();
+  return BigInt(value);
 }
 
 async function fetchCampaign(campaign: Address) {
@@ -281,12 +285,50 @@ async function loadPayer(): Promise<TransactionSigner> {
   return createKeyPairSignerFromBytes(bytes);
 }
 
+async function seedActiveCampaigns(
+  payer: TransactionSigner,
+  donors: TransactionSigner[],
+): Promise<void> {
+  step(2, `Seeding active campaigns (open for ${seedDeadlineSecs}s)`);
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + seedDeadlineSecs);
+  const baseId = BigInt(Math.floor(Date.now() / 1000));
+
+  const campaigns: { id: bigint; goal: bigint; amounts: bigint[] }[] = [
+    { id: baseId, goal: 10n * SOL, amounts: [SOL, SOL / 2n, 0n] },
+    { id: baseId + 1n, goal: 25n * SOL, amounts: [2n * SOL, 0n, 0n] },
+  ];
+
+  for (const { id, goal, amounts } of campaigns) {
+    const { campaign, instruction } = await createCampaignIx(
+      payer,
+      id,
+      goal,
+      deadline,
+      sha256(`Bestcrow showcase campaign ${id}`),
+    );
+    const createSig = await send([instruction], payer);
+    detail(`active campaign ${campaign}  goal=${sol(goal)} SOL  ${explorerTx(createSig)}`);
+
+    let raised = 0n;
+    for (let i = 0; i < donors.length; i += 1) {
+      const amount = amounts[i] ?? 0n;
+      if (amount === 0n) continue;
+      const donor = donors[i]!;
+      const signature = await send([await pledgeIx(donor, campaign, amount)], donor);
+      raised += amount;
+      detail(`pledge ${sol(amount)} SOL by ${donor.address}  ${explorerTx(signature)}`);
+    }
+    console.log(`      raised ${sol(raised)} / ${sol(goal)} SOL  ${explorerAddress(campaign)}`);
+  }
+}
+
 async function ensureFunded(payer: TransactionSigner, required: bigint): Promise<void> {
   let current = await balance(payer.address);
   if (current >= required) return;
   if (wantAirdrop) {
     detail(`payer has ${sol(current)} SOL, requesting airdrop`);
-    await rpc.requestAirdrop(payer.address, required * 2n).send();
+    const airdropLamports = (required * 2n) as unknown as Parameters<typeof rpc.requestAirdrop>[1];
+    await rpc.requestAirdrop(payer.address, airdropLamports).send();
     await sleep(2_000);
     current = await balance(payer.address);
   }
@@ -332,6 +374,12 @@ async function main(): Promise<void> {
   const fundSig = await send(fundIxs, payer);
   donors.forEach((donor, i) => detail(`donor[${i}] ${donor.address}`));
   detail(`explorer: ${explorerTx(fundSig)}`);
+
+  if (mode === 'seed') {
+    await seedActiveCampaigns(payer, donors);
+    console.log(green('\nSeed complete. Open the app (npm run dev) to browse the campaigns.'));
+    return;
+  }
 
   // ---- Create campaigns.
   const deadline = BigInt(Math.floor(Date.now() / 1000) + deadlineSecs);
