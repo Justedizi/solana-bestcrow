@@ -1,0 +1,116 @@
+name: CD
+
+on:
+  # Tag a release (e.g. `git tag v1.0.0 && git push --tags`) to deploy the program.
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: Solana cluster for the program deploy
+        type: choice
+        options: [devnet, testnet]
+        default: devnet
+      deploy_frontend:
+        description: Also deploy the frontend to Vercel
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  program:
+    name: Deploy program
+    runs-on: ubuntu-latest
+    # Required repository secrets:
+    #   SOLANA_DEPLOY_KEYPAIR   JSON array of the fee payer / upgrade authority
+    #   SOLANA_PROGRAM_KEYPAIR  JSON array of the program keypair (must match declare_id!)
+    #   SOLANA_RPC_URL          optional custom RPC (e.g. a Helius endpoint)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install Solana CLI
+        run: |
+          if ! command -v solana >/dev/null 2>&1; then
+            sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          fi
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Load deploy keypairs
+        env:
+          WALLET_JSON: ${{ secrets.SOLANA_DEPLOY_KEYPAIR }}
+          PROGRAM_KEYPAIR_JSON: ${{ secrets.SOLANA_PROGRAM_KEYPAIR }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WALLET_JSON:-}" ] || [ -z "${PROGRAM_KEYPAIR_JSON:-}" ]; then
+            echo "::error::SOLANA_DEPLOY_KEYPAIR and SOLANA_PROGRAM_KEYPAIR secrets are required"
+            exit 1
+          fi
+          printf '%s' "$WALLET_JSON" > "$RUNNER_TEMP/id.json"
+          printf '%s' "$PROGRAM_KEYPAIR_JSON" > "$RUNNER_TEMP/program-keypair.json"
+          chmod 600 "$RUNNER_TEMP/id.json" "$RUNNER_TEMP/program-keypair.json"
+
+      - name: Build SBF program
+        working-directory: rust
+        run: |
+          set -euo pipefail
+          cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0 --sbf-out-dir target/deploy
+
+      - name: Deploy to ${{ github.event.inputs.cluster || 'devnet' }}
+        working-directory: rust
+        env:
+          CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
+          RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+        run: |
+          set -euo pipefail
+          solana config set --keypair "$RUNNER_TEMP/id.json"
+          if [ -n "${RPC_URL:-}" ]; then
+            solana config set --url "$RPC_URL"
+          else
+            solana config set --url "$CLUSTER"
+          fi
+          solana program deploy target/deploy/charity_vault.so \
+            --program-id "$RUNNER_TEMP/program-keypair.json" \
+            --upgrade-authority "$RUNNER_TEMP/id.json"
+          solana program show "$(solana-keygen pubkey "$RUNNER_TEMP/program-keypair.json")"
+
+  frontend:
+    name: Deploy frontend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_frontend
+    # Required repository secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Deploy to Vercel
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::warning::VERCEL_TOKEN not configured; skipping frontend deploy"
+            exit 0
+          fi
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

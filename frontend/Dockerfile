@@ -1,21 +1,28 @@
-FROM node:22.16.0-alpine@sha256:41e4389f3d988d2ed55392df4db1420ad048ae53324a8e2b7c6d19508288107e
+# syntax=docker/dockerfile:1
 
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --no-audit
-COPY . .
-ARG NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
-ENV NEXT_PUBLIC_SOLANA_RPC_URL=${NEXT_PUBLIC_SOLANA_RPC_URL}
-ARG NEXT_PUBLIC_META_DAO_PROGRAM_ID=FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq
-ENV NEXT_PUBLIC_META_DAO_PROGRAM_ID=${NEXT_PUBLIC_META_DAO_PROGRAM_ID}
-ARG NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID=VLTX1ishMBbcX3rdBWGssxawAo1Q2X2qxYFYqiGodVg
-ENV NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID=${NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID}
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-RUN chown -R node:node /app/.next
+RUN npm ci --no-audit --no-fund
 
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+ARG NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID=74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG
+ENV NEXT_PUBLIC_SOLANA_RPC_URL=$NEXT_PUBLIC_SOLANA_RPC_URL
+ENV NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID=$NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:22-bookworm-slim AS runner
+WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
 USER node
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]

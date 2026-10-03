@@ -1,8 +1,0 @@
-.git
-.env*
-**/node_modules
-**/target
-**/.anchor
-**/.ledger
-**/*keypair.json
-frontend

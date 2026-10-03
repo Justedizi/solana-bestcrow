@@ -1,16 +1,13 @@
-FROM node:22.16.0-alpine@sha256:41e4389f3d988d2ed55392df4db1420ad048ae53324a8e2b7c6d19508288107e
+FROM node:22-bookworm-slim
 
 WORKDIR /app
-COPY rust/clients/js /app/rust/clients/js
-COPY backend/package.json backend/package-lock.json backend/tsconfig.json backend/.npmrc /app/backend/
-WORKDIR /app/backend
-RUN npm ci --ignore-scripts --no-audit
-COPY backend/src /app/backend/src
-COPY backend/test /app/backend/test
-RUN npm run check
-RUN npm test
 
-ENV PORT=3001
-EXPOSE 3001
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY --chown=node:node . .
+RUN mkdir -p /app/data && chown node:node /app /app/data
+
 USER node
-CMD ["npm", "start"]
+EXPOSE 4000
+CMD ["npm", "run", "dev"]

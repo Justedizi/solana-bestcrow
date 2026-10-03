@@ -1,7 +1,5 @@
 # Charity Crowdfunding on Solana — Complete Execution Plan
 
-> Historical `main` branch plan. Branch `v2` uses USDC milestones and MetaDAO Pass/Fail markets; see `README.md`.
-
 **Goal:** win the Finance Without Intermediaries track (11 300 PLN).
 **Timeline:** code window Sat 23:00 → Sun 23:00, HackTribe submission, 10-slide PDF, 3-min video, live demo.
 **What exists:** starter escrow program (256 lines, 4 instructions, tested) + Next.js frontend (610 lines) — we rename and extend, not rewrite.
@@ -255,7 +253,9 @@ Every rubric column maps to a demonstrable property of the program — not a che
 | Implementation | 15% | Anchor + tests + a clean Codama client + a documented state machine |
 | Originality | 10% | Proportional atomic refund-all is the demo beat nobody else will have |
 
+<<<<<<< HEAD
 If you want to win, the checklist runs itself — build the 5-instruction simple version, ship it live, and make refund_all the demo's climactic beat. That's the whole game.
+<<<<<<< main
 
 ---
 
@@ -323,3 +323,8 @@ The honest sentence: **we are not "better than MetaDAO".** We implement a determ
 - We are raw lamports; MetaDAO is SPL-token plumbing + a 3-program dependency chain. Deploying their stack to devnet ourselves is a multi-hour detour with zero scoring weight.
 - Thin charity markets make TWAP manipulation cheap — it would *weaken* our trust story, not strengthen it.
 - §11's rule applies: framework/integration migration on a 24h clock is a pure time sink. Completeness (25%) is scored on the working create→pledge→finalize→refund_all loop.
+=======
+=======
+If you want to win, the checklist runs itself — build the 5-instruction simple version, ship it live, and make refund_all the demo's climactic beat. That's the whole game.
+>>>>>>> 7eb812d7aa478b2434c25e7972d91e19a55dd742
+>>>>>>> main

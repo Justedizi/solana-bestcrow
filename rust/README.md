@@ -1,37 +1,46 @@
-# Bestcrow v2 Anchor program
+# Charity Vault
 
-`bestcrow` is the Rust custody and milestone state machine. The TypeScript backend and any frontend consume the generated IDL in `idl/` and the Codama client in `clients/js/`. The on-chain program never accepts a platform administrator for release or refunds.
+Modular Anchor program for the charity crowdfunding flow in `../EXECUTION_PLAN.md`.
 
-## Accounts
+## State machine
 
-- `Campaign` PDA: `["campaign", creator, campaign_id_le]`. Holds immutable terms, balances, statuses and up to ten ordered milestones.
-- `Vault` SPL Token account PDA: `["vault", campaign]`, owned by the campaign PDA, holds Circle USDC only.
-- `Backer` PDA: `["backer", campaign, wallet]`, records the contribution for pro-rata refunds.
-- `DaoBinding` PDA: `["dao-binding", meta_dao]`, prevents one DAO's proposal markets from controlling unrelated campaigns.
+`Active -> Succeeded` when `finalize` is called after the deadline and the goal is met.
+`Active -> Refunded` when `finalize` is called after the deadline and the goal is not met.
 
-Campaigns require five to ten ordered milestones. The kickoff tranche is at most 30% of the goal, each milestone is at most 50%, and all payouts must sum exactly to the goal. These limits are validated on chain.
+Funds are held in a program-owned vault PDA. The creator can claim only after
+`Succeeded`; donors can claim only after `Refunded`. `refund_all` processes the
+fixed donor registry (maximum 12 donors) in one transaction and validates every
+ledger PDA before paying it.
 
-The quote mint must be the Circle USDC mint on devnet or mainnet and have six decimals. The creator supplies a distinct project `base_mint`. The MetaDAO DAO must use exactly that base/quote pair and have a funded spot pool sufficient to seed its required conditional liquidity. A precreated, distinct Draft MetaDAO proposal is fixed for each milestone at campaign creation. All proposal accounts are passed in the same order as the milestones.
+`claim_success` and `refund_all` sweep the vault's rent reserve back to the
+creator/caller so no lamports are stranded; an individual `claim_refund` returns
+the donor's exact pledge and leaves only the small rent reserve.
 
-## Instructions
+## Layout
 
-- `create_campaign`: fixes goal, metadata hash, funding deadline, market timeout, kickoff amount, milestones, DAO and mints. Its `remaining_accounts` are the ordered MetaDAO proposal accounts.
-- `pledge`, `withdraw_pledge`, `close_backer`: SPL deposits and exits during funding. Reaching the exact goal transfers the kickoff amount and activates the campaign.
-- `finalize_funding`, `cancel_campaign`: freeze remaining escrow for refunds when funding fails or the creator cancels before activation.
-- `submit_evidence`: creator records a nonzero evidence hash before the current due date while the precommitted proposal is still Draft.
-- `resolve_milestone`: anyone can submit the finalized MetaDAO proposal. `Passed` transfers the tranche to the creator; `Failed` freezes the remaining escrow.
-- `expire_milestone`: anyone can terminate after a missed evidence or market deadline. A finalized MetaDAO outcome cannot be overwritten by a timeout.
-- `claim_refund`: anyone may execute a backer's refund to that wallet's USDC account. The backer receipt closes and its rent returns to the backer.
-- `sweep_dust`: after every positive backer receipt has claimed, anyone can send rounding dust to the creator.
+- `programs/charity-vault/src/state.rs`: account data, status, and fixed sizes.
+- `programs/charity-vault/src/instructions/`: one file per instruction.
+- `programs/charity-vault/src/lib.rs`: thin Anchor entrypoints and module exports.
+- `programs/charity-vault/tests/flow.rs`: LiteSVM end-to-end tests.
 
-Refunds use a frozen pool and denominator: `floor(backer_contribution * refund_pool / total_raised)`. Claim order cannot change an entitlement. Released tranches cannot be clawed back. Wallet addresses, amounts and hashes are public on Solana; no personal identity data is stored.
+## Build and test
 
-## MetaDAO boundary
+From this directory:
 
-The program reads the verified owner and discriminator of MetaDAO v0.6.1 DAO and Proposal accounts. It relies on MetaDAO's own finalization for TWAP calculation, threshold choice and conditional vault settlement. StageGate does not reimplement those formulas. The MetaDAO program ID and account layout are pinned in `programs/bestcrow/src/meta_dao.rs`. The backend uses MetaDAO's official TypeScript SDK to prepare its unsigned proposal instructions.
+```bash
+# 1. Build the SBF program (the tests load target/deploy/charity_vault.so).
+NO_DNA=1 anchor build --no-idl -- --arch v0
 
-Only a timely finalized, non-sponsored proposal can release a tranche. Team-sponsored proposals terminate the campaign for refunds, and a proposal launched after the StageGate market deadline can time out even if it later finalizes. The evidence hash is an immutable reference to off-chain material, not an oracle of product quality. The proposal's Squads action must be reviewed by participants before they fund the campaign. MetaDAO proposal setup, funding its spot liquidity, and proposal staking happen outside StageGate escrow.
+# 2. Run the LiteSVM integration tests (create/pledge/finalize/claim/refund_all).
+NO_DNA=1 cargo test --manifest-path programs/charity-vault/Cargo.toml
 
-## Upgrade authority
+# Optional: regenerate the IDL and TypeScript types for the web client.
+NO_DNA=1 anchor idl build -p charity-vault -o target/idl/charity_vault.json -t target/types/charity_vault.ts
+```
 
-The Solana upgradeable loader controls program upgrades. While an upgrade authority exists, it can replace this logic. `../scripts/check-upgrade-authority.sh` reads the deployed authority without signing. A production deployment should disclose its authority and review policy before accepting funds.
+`anchor build` without `--arch v0` fails on this toolchain because the installed
+platform-tools (v1.57) target SBPFv3 while the default build arch is v3; the
+`--arch v0` flag selects the compatible target.
+
+The program uses SOL lamports for the MVP. The generated `target/idl` and
+`target/types` files are the integration boundary for a web client.

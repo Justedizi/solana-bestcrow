@@ -1,77 +1,51 @@
+# One command to present:  docker compose up --build
+# Web: http://localhost:3000   API: http://localhost:4000/api/health
+name: charity-vault
+
 services:
-  anchor:
-    image: quay.io/ottersec/anchor:v1.1.2@sha256:4ef4cf067fb1332ddd2b997a48ed05257854f51067ade342d63ebdc1039fe72e
-    platform: linux/amd64
-    working_dir: /workspace/rust
-    environment:
-      NO_DNA: "1"
-    volumes:
-      - ./rust:/workspace/rust
-      - ./scripts:/workspace/scripts:ro
-      - cargo-registry:/root/.cargo/registry
-      - cargo-git:/root/.cargo/git
-    profiles: [tools]
-    command: ["anchor", "--version"]
-
-  validator:
-    image: surfpool/surfpool:1.5.0@sha256:4f7b64daa96ab42d8a0d46cd0de556b1c90386f56fd66cfdefcb5f7039fdec9f
-    command: ["start", "--no-tui", "--no-studio", "--offline", "--no-deploy", "--host", "0.0.0.0"]
-    ports:
-      - "127.0.0.1:8899:8899"
-      - "127.0.0.1:8900:8900"
-    profiles: [localnet]
-
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    environment:
-      RPC_URL: ${RPC_URL:-https://api.devnet.solana.com}
-      HOST: ${HOST:-0.0.0.0}
-      PORT: ${PORT:-3001}
-      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-16384}
-      STAGEGATE_PROGRAM_ID: ${STAGEGATE_PROGRAM_ID:-EousWVK2cePYb9zvv1oWSca4VNdRQqYef8CsxQ6BL57R}
-      META_DAO_PROGRAM_ID: ${META_DAO_PROGRAM_ID:-FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq}
-      CONDITIONAL_VAULT_PROGRAM_ID: ${CONDITIONAL_VAULT_PROGRAM_ID:-VLTX1ishMBbcX3rdBWGssxawAo1Q2X2qxYFYqiGodVg}
-      USDC_MINTS: ${USDC_MINTS:-4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU,EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v}
-      POLL_MS: ${POLL_MS:-0}
-      KEEPER_AUTOSEND: ${KEEPER_AUTOSEND:-0}
-      KEEPER_KEYPAIR_PATH: ${KEEPER_KEYPAIR_PATH:-}
-    ports:
-      - "127.0.0.1:${BACKEND_HOST_PORT:-3001}:${PORT:-3001}"
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    profiles: [backend]
-
   frontend:
-    depends_on:
-      backend:
-        condition: service_healthy
     build:
       context: ./frontend
-      dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SOLANA_RPC_URL: ${FRONTEND_SOLANA_RPC_URL:-https://api.devnet.solana.com}
-        NEXT_PUBLIC_META_DAO_PROGRAM_ID: ${META_DAO_PROGRAM_ID:-FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq}
-        NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID: ${CONDITIONAL_VAULT_PROGRAM_ID:-VLTX1ishMBbcX3rdBWGssxawAo1Q2X2qxYFYqiGodVg}
-    environment:
-      PORT: "3000"
-      BACKEND_URL: ${FRONTEND_BACKEND_URL:-http://backend:3001}
-      BACKEND_TIMEOUT_MS: ${BACKEND_TIMEOUT_MS:-1500}
-      NEXT_PUBLIC_SOLANA_RPC_URL: ${FRONTEND_SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      NEXT_TELEMETRY_DISABLED: "1"
+        NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-https://api.devnet.solana.com}
+        NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
+    image: charity-vault-web:latest
+    init: true
     ports:
-      - "127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000"
+      - "3000:3000"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 6
+
+  backend:
+    build: ./backend
+    image: charity-vault-backend:latest
+    init: true
+    environment:
+      PORT: "4000"
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
+      CLUSTER: devnet
+      DB_PATH: /app/data/bestcrow.db
+      INDEXER_ENABLED: ${INDEXER_ENABLED:-true}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-15000}
+      SIGNATURE_SCAN_LIMIT: ${SIGNATURE_SCAN_LIMIT:-200}
+    ports:
+      - "4000:4000"
+    volumes:
+      - backend-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
       timeout: 5s
+      start_period: 20s
       retries: 3
-    profiles: [frontend]
 
 volumes:
-  cargo-registry:
-  cargo-git:
+  backend-data:

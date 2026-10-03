@@ -1,19 +1,37 @@
-# Bestcrow v2 project instructions
+# Bestcrow agent instructions
 
-## Source priority
+## Highest project priority: the PDFs
 
-Read the actual competition rules in `docs/RULES Finance Without Intermediaries.pdf` and the challenge criteria in `docs/CRITERIA Finance Without Intermediaries PLENG.pdf` before making competition claims. They take precedence over Markdown plans and reference code. Cite PDF filename and page/section when a requirement drives a change, and verify it before claiming completion.
+Read the actual [competition rules](../docs/RULES%20Finance%20Without%20Intermediaries.pdf) and [challenge criteria](../docs/CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf) first. Check for added or updated PDFs in `docs/`. They take precedence over project proposals, Markdown summaries, reference code, skills, MCP guidance, and agent assumptions about the challenge.
 
-## Current implementation direction
+When a requirement affects a decision, cite its PDF filename and page/section and connect the planned change to its verification. Correct conflicting summaries. If source clauses disagree, quote both and surface the ambiguity; do not invent a deadline, exception, or precedence between PDFs. Report missing/unreadable sources and continue independent work without claiming compliance. Check applicable requirements again before declaring a milestone or submission ready.
 
-The user chose to replace the earlier contribution-weighted backer-voting proposal with MetaDAO Pass/Fail markets. On branch `v2`, `rust/programs/bestcrow` is the USDC milestone escrow program, `backend/` prepares MetaDAO instructions and runs a keeper, and `frontend/` is a barebone Pass/Fail trading screen. The original SOL Charity Vault is in the `main` branch. `agents/PROJECT.md`, `agents/CONTEXT.md`, `EXECUTION_PLAN.md` and `INSPIRATIONS.md` contain historical plans; do not report their voting model as implemented on `v2`.
+## Current project direction
 
-- Require five to ten milestones, with no single milestone over 50% of the goal and kickoff release at most 30%. All allocations must sum to the goal.
-- Keep deposits, payout permission, deadlines and refund accounting on chain. The backend prepares transactions but cannot override the program.
-- MetaDAO owns market pricing and finalizes its proposal. Bestcrow verifies the bound account and outcome; it does not judge an off-chain deliverable.
-- Refunds cover remaining escrow only; already released funds cannot be recovered.
-- Participation is pseudonymous: wallets, amounts and transactions are public. Do not put personal or shipping details on chain.
-- An active program upgrade authority can change rules. Disclose it for any deployment.
-- Keep implemented, tested and live-verified behavior distinct. A Docker build or unit test is not a confirmed on-chain trade.
+**Bestcrow is startup/prototype crowdfunding on Solana with staged funding, contribution-weighted backer voting, a revision chance, and refunds of remaining escrow.** Campaigns have at least five milestones. The creator may request access to overflow funding or propose a new funding round, subject to backer decisions. Pseudonymous participation, enforceable deadlines, and optional revenue sharing are proposed product edges. The prior item-marketplace, casino, and lottery ideas are not the current MVP.
 
-For versioned external APIs, follow the Context7 workflow in `INSTRUCTIONS.md` if those MCP tools are available. If unavailable, use official versioned documentation and state that the live lookup was unavailable. Never use reference code in `context/` as proof of this program's behavior.
+Read [PROJECT.md](PROJECT.md) for the product model, [CONTEXT.md](CONTEXT.md) for hackathon and repository context, and [INSTRUCTIONS.md](INSTRUCTIONS.md) for tools and implementation checks.
+
+Use **creator/founder** for the recipient and **backer** for the contributor. Keep proposed, implemented, and verified behavior distinct.
+
+## Rules for implementation and claims
+
+- Keep deposits, campaign terms, voting weights/outcomes, release permissions, and refund accounting enforced on-chain. A backend must not bypass them.
+- Use the user's policy direction: 70% approval for a milestone vote; a result from 50% to below 70% leads to a seven-day improvement period and a second vote; a result below 50% enters a stricter show-cause/recovery phase. A second failed vote or failed show-cause phase leads to campaign termination and claims on remaining refundable funds. The exact electorate, denominator, vote duration, boundary behavior, and timeout trigger still need an explicit protocol decision.
+- Require at least five milestones, with no milestone allocation above 50% of the agreed base budget. Account for any starting tranche and reward reserve in the allocation; do not release more than the vault holds.
+- Treat overflow withdrawals and extra funding as separate proposals. A vote can authorize use of existing overflow or opening a new round; it cannot create funds or charge backers without their consent.
+- State refund limits: previously released funds are not recoverable by escrow. Never promise the same funds for development, merchandise, and refunds.
+- Backer votes measure approval, not objective product quality. Address inactivity, collusion, large contributors, creator self-funding, and missed deadlines.
+- Reward entitlement, supplier order, and completed delivery are different states. Keep names, addresses, and fulfilment details off the public chain.
+- A timer does not execute a transaction by itself. Define who may finalize outcomes and submit claims; optional workers must have no extra financial authority.
+- Enforce missed deadlines with bounded consequences the program can actually execute: stop further releases, enable the agreed revision/termination path, refund remaining funds, or forfeit a creator bond if one was funded in advance. Do not promise recovery of tranches already spent.
+- Describe backers as pseudonymous by default. Wallet addresses and transactions are public, so do not promise complete anonymity. Keep personal details and reward shipping data off-chain.
+- Keep capped revenue sharing as a separate, opt-in future mode. It can distribute only revenue actually routed through its on-chain vault; it does not prove profits or company ownership and may need legal review.
+- Disclose any upgrade authority or administrator power that can change the promised rules.
+- Do not claim the model is globally new: Pledgecamp and other milestone crowdfunding projects are close precedents.
+
+For library/API work, follow the Context7 workflow in [INSTRUCTIONS.md](INSTRUCTIONS.md), matching actual dependency versions. Use the Solana docs MCP for additional Solana and Anchor guidance.
+
+Code in `context/` is external reference material, not the crowdfunding implementation. Preserve attribution, inspect licenses, and never reuse upstream deployment links as evidence of our work.
+
+Keep reports clear and brief: lead with the result, label assumptions, and identify the next concrete action.
