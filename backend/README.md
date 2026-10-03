@@ -1,119 +1,80 @@
-# Bestcrow backend
+# Bestcrow v2 TypeScript backend
 
-Node.js indexer and REST API for the **Charity Vault** / Bestcrow Solana program
-(`rust/programs/charity-vault`). The Next.js client talks to Solana directly for
-signing; this service adds the pieces the chain cannot serve cheaply on its own:
+The API reads Anchor accounts through the generated `@bestcrow/client` decoder and prepares unsigned instructions. The keeper polls for eligible actions every 30 seconds. It can dispatch those actions when explicitly configured with a separate keeper keypair; by default it only reports them.
 
-- **Indexer** — polls the program's campaign and donor-ledger accounts, parses
-  Anchor events from transaction logs, and stores everything in SQLite.
-- **REST API** — fast campaign/donor/event listings, aggregate stats, and a
-  filterable campaign search.
-- **Off-chain metadata** — titles, long descriptions, images, and rewards, with
-  the description verified against the on-chain `desc_hash` commitment.
-- **Instruction builders** — stateless endpoints that return the accounts and
-  hex instruction data any client needs to build a transaction (no signing).
+## Run
 
-## Requirements
+Requires Node.js 22.16 or newer.
 
-- Node.js >= 22.5 (uses the built-in `node:sqlite` module)
-- A Solana RPC endpoint (devnet by default)
-
-## Setup
-
-```bash
-cd backend
-npm install
-cp .env.example .env      # optional; defaults target devnet
-npm run dev               # watch mode
-```
-
-Production:
-
-```bash
-npm run build
+```sh
+npm ci --ignore-scripts
+npm run check
+cp .env.example .env  # optional local overrides
 npm start
 ```
 
-Validate:
-
-```bash
-npm run typecheck
-npm test
-```
+Docker: from the repository root, copy `backend/.env.example` to `.env` if overrides
+are needed, then run `docker compose --profile backend up --build -d backend`.
+Health: `GET http://127.0.0.1:3001/health` by default. Set `POLL_MS=0` to disable polling.
 
 ## Configuration
 
-| Variable | Default | Purpose |
+| Variable | Default | Use |
 | --- | --- | --- |
-| `PORT` | `4000` | HTTP port |
-| `CORS_ORIGIN` | `*` | Comma-separated allowed origins, or `*` |
-| `SOLANA_RPC_URL` | `https://api.devnet.solana.com` | RPC endpoint |
-| `CHARITY_VAULT_PROGRAM_ID` | `F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3` | Program id |
-| `CLUSTER` | `devnet` | Label used in responses/Explorer links |
-| `DB_PATH` | `./data/bestcrow.db` | SQLite file (`:memory:` for ephemeral) |
-| `INDEXER_ENABLED` | `true` | Toggle the background indexer |
-| `POLL_INTERVAL_MS` | `15000` | Indexer poll interval |
-| `SIGNATURE_SCAN_LIMIT` | `200` | Max recent signatures scanned per poll |
+| `RPC_URL` | Devnet RPC | Solana JSON RPC endpoint |
+| `HOST` / `PORT` | `0.0.0.0` / `3001` | HTTP bind address and port |
+| `MAX_BODY_BYTES` | `16384` | Maximum JSON request size |
+| `POLL_MS` | `30000` | Keeper scan interval; `0` disables it |
+| `STAGEGATE_PROGRAM_ID` | `EousWVK...` | StageGate program in `rust/programs/bestcrow/src/lib.rs` |
+| `META_DAO_PROGRAM_ID` | `FUTARELB...` | MetaDAO futarchy program |
+| `CONDITIONAL_VAULT_PROGRAM_ID` | `VLTX1ish...` | MetaDAO conditional vault program |
+| `USDC_MINTS` | Devnet and mainnet USDC | Comma-separated accepted quote mints |
+| `KEEPER_AUTOSEND` | `0` | Optional operator transaction dispatcher |
+| `KEEPER_KEYPAIR_PATH` | unset | External operator keypair path when autosend is enabled |
 
-## API
+The backend uses `BackendConfig` for validated environment settings, `SolanaGateway`
+for RPC and account decoding, `MetaDaoService` for proposal preparation,
+`KeeperService` for action selection and unsigned instructions, and `ApiServer`
+for HTTP routing. Tests live in `backend/test/`.
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/health` | Liveness, last indexed slot/signature |
-| `GET` | `/api/stats` | Aggregate campaign/donor/refund totals |
-| `GET` | `/api/program` | Program id, account sizes, instruction discriminators |
-| `GET` | `/api/campaigns` | List; `status`, `creator`, `q`, `sort` (`created\|deadline\|raised\|progress`), `order`, `limit`, `offset` |
-| `GET` | `/api/campaigns/by-pda` | Resolve by `creator` + `campaignId` |
-| `GET` | `/api/campaigns/:address` | Campaign with donors and metadata |
-| `GET` | `/api/campaigns/:address/donors` | Donor ledger (sorted by amount) |
-| `GET` | `/api/campaigns/:address/events` | Indexed event history |
-| `GET` | `/api/campaigns/:address/metadata` | Off-chain metadata |
-| `PUT` | `/api/campaigns/:address/metadata` | Store metadata; `description` must hash to `desc_hash` or the request fails `409` |
-| `GET` | `/api/instructions/create` | Build `create_campaign` (`creator`, `campaignId`, `goal`, `deadline`, `descHash`) |
-| `GET` | `/api/instructions/pledge` | Build `pledge` (`donor`, `campaign`, `amount`) |
-| `GET` | `/api/instructions/finalize` | Build `finalize` (`caller`, `campaign`) |
-| `GET` | `/api/instructions/claim-success` | Build `claim_success` (`creator`, `campaign`) |
-| `GET` | `/api/instructions/claim-refund` | Build `claim_refund` (`donor`, `campaign`) |
-| `GET` | `/api/instructions/refund-all/:campaign` | Build `refund_all` using indexed donors + `caller` |
-| `GET` | `/api/stream` | Server-Sent Events stream of indexer syncs |
+The generated client and IDL use the declared Bestcrow program ID. The backend
+also accepts `STAGEGATE_PROGRAM_ID` so a deployment can configure its actual ID.
+The backend's `.npmrc` installs its local `@bestcrow/client` dependency as a
+package copy, so clean CI and Docker builds resolve its Solana dependencies.
 
-All amounts are lamports as decimal strings (`u64`); SOL equivalents are provided
-alongside as `*Sol` fields.
+## Routes
 
-### Example
+| Route | Result |
+| --- | --- |
+| `GET /health` | Service status and RPC endpoint |
+| `GET /campaigns` | All decoded StageGate campaigns |
+| `GET /campaigns/:address` | One campaign |
+| `GET /campaigns/:address/action` | Current keeper action; `?caller=<pubkey>` adds unsigned instruction data |
+| `GET /campaigns/:address/refund?wallet=<pubkey>&caller=<pubkey>` | Eligible backer's amount and unsigned refund instruction |
+| `GET /keeper/actions` | All currently eligible transitions |
+| `POST /meta-dao/prepare` | Unsigned MetaDAO proposal instruction groups |
+| `GET /campaigns/:address/market?milestone=N` | Campaign-bound market state, token decimals and indicative prices |
+| `POST /campaigns/:address/market/prepare` | Unsigned conditional split/swap groups for Pass or Fail |
+| `POST /campaigns/:address/market/redeem` | Unsigned winning-token redemption groups after finalization |
 
-```bash
-curl localhost:4000/api/campaigns?status=active&sort=progress
-curl localhost:4000/api/campaigns/So11111111111111111111111111111111111111112
-```
+`POST /meta-dao/prepare` takes `operation` (`initialize`, `stake`, `launch`, `finalize`), `payer`, `dao`, `baseMint`, `quoteMint`, `squadsProposal`, and optionally `proposal` and `amount` (for staking, in base token units). `initialize` returns three ordered transaction groups: question creation, two conditional vaults together, and proposal initialization. The Squads proposal and funded MetaDAO DAO must already exist. Other operations return one group. Every instruction is `{programId, accounts: [{address,isSigner,isWritable}], data}` with base64 instruction data. The client wallet adds a recent blockhash, signs, and submits; the API never signs these requests.
 
-## Architecture
+The backend uses the pinned official `@metadaoproject/programs` SDK for MetaDAO instruction preparation. It uses the Anchor-generated Codama client for StageGate account decoding and instructions. Proposal state comes from MetaDAO-owned accounts. Its deployment to any target cluster must be checked separately; public devnet RPC rate limits prevented confirming MetaDAO availability during development.
 
-```
-src/
-  index.ts             entrypoint: server + indexer + graceful shutdown
-  config.ts            env loading (no dotenv dependency)
-  db/index.ts          node:sqlite schema + Store access layer
-  solana/
-    program.ts         program id, PDAs, account decoders, instruction plans
-    events.ts          Anchor event decoding from transaction logs
-    rpc.ts             @solana/kit RPC wrappers
-    indexer.ts         polling sync: accounts, ledgers, events
-  services/campaigns.ts DTOs, filtering/sorting, stats, hash verification
-  api/
-    server.ts          express app
-    routes/            campaigns, system, instructions
-    middleware/error.ts typed errors + async wrapper
-```
+The pinned MetaDAO SDK depends on older Anchor/Solana packages. `npm audit --omit=dev` currently reports 15 advisories, including 7 high-severity transitive advisories. This local prototype should not be exposed as a public production service before dependency review and security testing.
 
-The indexer never trusts its own database for authorization — it is a read model.
-The on-chain program remains the sole authority over funds and state transitions.
+## Keeper dispatcher
 
-## Notes and limits
+For a self-hosted operator, set `KEEPER_AUTOSEND=1` and `KEEPER_KEYPAIR_PATH` to an existing Solana keypair file **outside this repository**. The keeper then signs only currently eligible permissionless finalization, timeout and resolution instructions, rechecking campaign state immediately before sending. A failed transaction is logged and retried on the next poll. Do not set these variables for a read-only API. In Docker, mount the external file read-only and set its container path with a Compose override. No keypair is generated or committed here.
 
-- Off-chain metadata is only as trustworthy as the hash check: a `verified: true`
-  record means the stored description matches the on-chain SHA-256 commitment.
-- The program caps a campaign at 12 donors, so `refund_all` fits in one legacy
-  transaction.
-- Event reconstruction depends on RPC log retention (`SIGNATURE_SCAN_LIMIT`);
-  account state is always re-synced in full each poll.
+Keeper actions are: finalize funding below goal, expire a pending/reviewing milestone, finalize a mature MetaDAO proposal, and resolve a finalized MetaDAO result. MetaDAO's market duration must be at least 24 hours. No bot is required for a user to invoke any of these transitions.
+
+The trade-preparation body is `{wallet,side,direction,amount,minReceived,useExistingConditional?}`:
+`side` is `pass` or `fail`, `direction` is `buy` or `sell`, and both
+amounts are human-readable decimal token amounts. `minReceived` must be
+positive; the MetaDAO swap enforces it on chain. A buy returns a conditional
+USDC split transaction and then a swap transaction. Set
+`useExistingConditional: true` only when the wallet already holds the
+corresponding conditional USDC. Redemption takes `{wallet,milestone}` with a
+one-based milestone number and returns transactions for nonzero winning token
+balances. The caller's wallet signs all transactions.

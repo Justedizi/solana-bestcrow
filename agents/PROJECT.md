@@ -1,5 +1,7 @@
 # Bestcrow — crowdfunding with accountable funding releases
 
+> Historical v1 product proposal. On branch `v2`, the user chose MetaDAO Pass/Fail markets instead of the weighted backer voting described below. See the root `README.md` and current source for implemented behavior.
+
 HackYeah 2026 · Superteam Poland · Finance Without Intermediaries
 
 **Source priority:** the [rules](../docs/RULES%20Finance%20Without%20Intermediaries.pdf) and [challenge criteria](../docs/CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf) in `docs/` govern project requirements. This file is a subordinate product proposal.

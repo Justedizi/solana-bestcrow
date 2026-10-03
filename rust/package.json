@@ -1,0 +1,18 @@
+{
+  "name": "bestcrow-rust-tooling",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "clients/js"
+  ],
+  "scripts": {
+    "generate:client": "anchor codama generate -l js -p clients idl/bestcrow.json",
+    "check:client": "tsc --project clients/js/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@codama/renderers-js": "2.5.0",
+    "@solana/kit": "8.3.0",
+    "@types/node": "22.15.29",
+    "typescript": "5.9.3"
+  }
+}
