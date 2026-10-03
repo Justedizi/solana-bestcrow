@@ -284,12 +284,14 @@ export const claimRefundPlan = async (args: {
 export const refundAllPlan = async (args: {
   caller: Address;
   campaign: Address;
+  creator: Address;
   donors: Address[];
 }): Promise<InstructionPlan> => {
   const accounts: AccountMetaPlan[] = [
     { pubkey: args.caller, signer: true, writable: false },
     { pubkey: args.campaign, signer: false, writable: true },
     { pubkey: await getVaultPda(args.campaign), signer: false, writable: true },
+    { pubkey: args.creator, signer: false, writable: true },
   ];
   for (const donor of args.donors) {
     accounts.push({ pubkey: await getDonorLedgerPda(args.campaign, donor), signer: false, writable: true });

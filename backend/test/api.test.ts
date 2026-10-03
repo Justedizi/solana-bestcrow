@@ -206,7 +206,7 @@ test('GET /api/instructions/finalize builds an unsigned plan', async () => {
 test('GET /api/instructions/refund-all enumerates indexed donors', async () => {
   const { status, body } = await get(`/api/instructions/refund-all/${CAMPAIGN_ONE}?caller=${DONOR}`);
   assert.equal(status, 200);
-  assert.equal(body.accounts.length, 3 + 4);
+  assert.equal(body.accounts.length, 4 + 4);
 });
 
 test('unknown route returns 404 JSON', async () => {

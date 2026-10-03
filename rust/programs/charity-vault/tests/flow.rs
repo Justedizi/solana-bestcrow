@@ -232,8 +232,10 @@ fn refund_flow_returns_exact_donations() {
         "status should be Refunded"
     );
 
-    // The donor claims their exact contribution back.
+    // The donor claims their contribution back; the ledger is closed and its
+    // rent returned to the donor in the same instruction.
     let ledger = ledger_pda(&campaign, &donor.pubkey());
+    let ledger_rent = svm.get_balance(&ledger).unwrap();
     let before = svm.get_balance(&donor.pubkey()).unwrap();
     send(
         &mut svm,
@@ -250,20 +252,19 @@ fn refund_flow_returns_exact_donations() {
         &[],
     );
     let after = svm.get_balance(&donor.pubkey()).unwrap();
+    let expected = before + pledge + ledger_rent;
     assert!(
-        after <= before + pledge && after >= before + pledge - 10_000,
-        "donor refunded {after}, expected about {}",
-        before + pledge
+        after <= expected && after >= expected - 10_000,
+        "donor refunded {after}, expected about {expected}"
     );
     assert_eq!(
         svm.get_balance(&vault).unwrap_or(0),
         RENT,
         "only rent reserve remains"
     );
-    assert_eq!(
-        svm.get_account(&ledger).unwrap().data[80],
-        1,
-        "ledger marked claimed"
+    assert!(
+        svm.get_account(&ledger).is_none(),
+        "ledger should be closed after a refund"
     );
 
     // A second claim must fail.
@@ -400,10 +401,19 @@ fn success_flow_releases_to_creator_and_batch_refunds() {
         &[],
     );
 
+    let ledger_rents: Vec<u64> = donors
+        .iter()
+        .map(|donor| {
+            svm.get_balance(&ledger_pda(&campaign_b, &donor.pubkey()))
+                .unwrap()
+        })
+        .collect();
+
     let mut accounts = vec![
         meta(caller.pubkey(), true, false),
         meta(campaign_b, false, true),
         meta(vault_pda(&campaign_b), false, true),
+        meta(creator.pubkey(), false, true),
     ];
     for donor in &donors {
         accounts.push(meta(ledger_pda(&campaign_b, &donor.pubkey()), false, true));
@@ -424,21 +434,21 @@ fn success_flow_releases_to_creator_and_batch_refunds() {
     for (index, donor) in donors.iter().enumerate() {
         assert_eq!(
             svm.get_balance(&donor.pubkey()).unwrap(),
-            balances[index] + SOL,
-            "donor {index} should be made whole"
+            balances[index] + SOL + ledger_rents[index],
+            "donor {index} should be made whole (pledge plus returned ledger rent)"
         );
     }
     assert_eq!(
         svm.get_account(&campaign_b).unwrap().data.len(),
         CAMPAIGN_SIZE
     );
-    assert_eq!(
-        LEDGER_SIZE,
-        svm.get_account(&ledger_pda(&campaign_b, &donors[0].pubkey()))
-            .unwrap()
-            .data
-            .len()
-    );
+    for donor in &donors {
+        assert!(
+            svm.get_account(&ledger_pda(&campaign_b, &donor.pubkey()))
+                .is_none(),
+            "refund_all should close each donor ledger"
+        );
+    }
 }
 
 #[test]

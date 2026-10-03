@@ -104,7 +104,8 @@ fund_payer() {
       warn "airdrop failed (rate limit?). Fund $PAYER manually if the demo stalls."
   fi
 }
-[[ "$MODE" == "local" ]] && fund_payer 500 || fund_payer 2
+[[ "$MODE" == "local" ]] && fund_payer 500
+if [[ "$MODE" == "devnet" ]]; then fund_payer 2; fi
 
 # ---------------------------------------------------------------------------
 # 3. Build + deploy the program
@@ -112,7 +113,7 @@ fund_payer() {
 require_cmd anchor
 require_cmd cargo
 PROGRAM_ID="$( ( cd "$RUST" && NO_DNA=1 anchor keys list 2>/dev/null ) | awk -F': ' '/charity_vault/{print $2}' )"
-[[ -n "$PROGRAM_ID" ]] || die "could not read the program id (run 'anchor keys list' in rust/)"B>
+[[ -n "$PROGRAM_ID" ]] || die "could not read the program id (run 'anchor keys list' in rust/)"
 SO="$RUST/target/deploy/charity_vault.so"
 KEYPAIR="$RUST/target/deploy/charity_vault-keypair.json"
 
@@ -173,6 +174,8 @@ log "Starting frontend"
 SERVER_PIDS+=("$!")
 
 sleep 3
+DEMO_FLAG="--local"
+[[ "$MODE" == "devnet" ]] && DEMO_FLAG="--devnet"
 printf '\n'
 printf '%s\n' "${C_BOLD}======================================================================${C_RESET}"
 printf '%s\n' "${C_BOLD}  BESTCROW — demo ready${C_RESET}"
@@ -191,7 +194,7 @@ printf '   4. On Refunded: refund_all repays every donor in ONE transaction.\n'
 printf '   5. On Succeeded: claim_success pays the creator.\n'
 printf '   6. Honest boundary: the program enforces money flow, not worthiness.\n'
 printf '\n'
-printf '  Hero CLI run:  scripts/demo.sh %s\n' "[[ \"$MODE\" == local ]] && echo --local || echo --devnet"
+printf '  Hero CLI run:  scripts/demo.sh %s\n' "$DEMO_FLAG"
 printf '  Stop:          Ctrl-C\n'
 printf '%s\n' "${C_BOLD}======================================================================${C_RESET}"
 printf '\n'

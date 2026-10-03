@@ -1,5 +1,5 @@
 use crate::{constants::*, error::CharityVaultError, state::*};
-use anchor_lang::{prelude::*, system_program};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct ClaimRefund<'info> {
@@ -18,7 +18,6 @@ pub struct ClaimRefund<'info> {
     #[account(mut, seeds = [VAULT_SEED, campaign.key().as_ref()], bump)]
     /// CHECK: This PDA is derived from the campaign and only stores campaign lamports.
     pub vault: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
 }
 
 pub fn handler(ctx: Context<ClaimRefund>) -> Result<()> {
@@ -30,27 +29,24 @@ pub fn handler(ctx: Context<ClaimRefund>) -> Result<()> {
     let ledger = &ctx.accounts.ledger;
     require!(!ledger.claimed, CharityVaultError::AlreadyClaimed);
     let amount = ledger.amount;
+
+    // The vault is program-owned, so the System Program cannot debit it. Move
+    // the exact pledge with a direct lamport transfer. The ledger is closed by
+    // the `close = donor` constraint, returning its rent to the donor too.
+    let vault = ctx.accounts.vault.to_account_info();
     require!(
-        ctx.accounts.vault.lamports() >= amount,
+        vault.lamports() >= amount,
         CharityVaultError::InsufficientVaultBalance
     );
-
-    // Pay the donation from the vault PDA. The ledger is closed by the
-    // `close = donor` constraint after this handler returns, returning its rent
-    // to the donor too.
-    let campaign_key = campaign.key();
-    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign_key.as_ref(), &[ctx.bumps.vault]];
-    system_program::transfer(
-        CpiContext::new_with_signer(
-            system_program::ID,
-            system_program::Transfer {
-                from: ctx.accounts.vault.to_account_info(),
-                to: ctx.accounts.donor.to_account_info(),
-            },
-            &[vault_seeds],
-        ),
-        amount,
-    )?;
+    let vault_balance = vault.lamports();
+    **vault.try_borrow_mut_lamports()? = vault_balance
+        .checked_sub(amount)
+        .ok_or(CharityVaultError::InsufficientVaultBalance)?;
+    let donor_state = ctx.accounts.donor.to_account_info();
+    let donor_balance = donor_state.lamports();
+    **donor_state.try_borrow_mut_lamports()? = donor_balance
+        .checked_add(amount)
+        .ok_or(CharityVaultError::ArithmeticOverflow)?;
 
     emit!(RefundIssued {
         campaign: campaign.key(),

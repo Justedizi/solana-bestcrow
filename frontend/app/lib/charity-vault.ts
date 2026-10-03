@@ -183,5 +183,5 @@ export async function claimRefundIx(donor: Address, campaign: Address) {
 export async function refundAllIx(caller: Address, campaign: Campaign) {
   const remaining: Meta[] = [];
   for (const donor of campaign.donors) remaining.push(writable(await donorPda(campaign.address, donor)), writable(donor));
-  return instruction('refund_all', [signer(caller), writable(campaign.address), writable(await vaultPda(campaign.address)), ...remaining]);
+  return instruction('refund_all', [signer(caller), writable(campaign.address), writable(await vaultPda(campaign.address)), writable(campaign.creator), ...remaining]);
 }

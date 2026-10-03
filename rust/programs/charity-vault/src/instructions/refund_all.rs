@@ -14,7 +14,6 @@ pub struct RefundAll<'info> {
     /// CHECK: Bound to the campaign creator; receives the residual vault rent.
     #[account(mut, address = campaign.creator)]
     pub creator: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
 }
 
 pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
@@ -29,10 +28,9 @@ pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
         CharityVaultError::InvalidRefundAccounts
     );
 
+    // The vault is program-owned, so the System Program cannot debit it. Move
+    // each pledge with a direct lamport transfer instead of a CPI.
     let vault = ctx.accounts.vault.to_account_info();
-    let campaign_key = campaign.key();
-    let vault_seeds: &[&[u8]] = &[VAULT_SEED, campaign_key.as_ref(), &[ctx.bumps.vault]];
-
     for index in 0..count {
         let ledger_info = &ctx.remaining_accounts[index * 2];
         let recipient_info = &ctx.remaining_accounts[index * 2 + 1];
@@ -86,21 +84,14 @@ pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
         };
 
         if amount > 0 {
-            require!(
-                vault.lamports() >= amount,
-                CharityVaultError::InsufficientVaultBalance
-            );
-            system_program::transfer(
-                CpiContext::new_with_signer(
-                    system_program::ID,
-                    system_program::Transfer {
-                        from: vault.clone(),
-                        to: recipient_info.clone(),
-                    },
-                    &[vault_seeds],
-                ),
-                amount,
-            )?;
+            let vault_balance = vault.lamports();
+            **vault.try_borrow_mut_lamports()? = vault_balance
+                .checked_sub(amount)
+                .ok_or(CharityVaultError::InsufficientVaultBalance)?;
+            let recipient_balance = recipient_info.lamports();
+            **recipient_info.try_borrow_mut_lamports()? = recipient_balance
+                .checked_add(amount)
+                .ok_or(CharityVaultError::ArithmeticOverflow)?;
         }
 
         // Return the ledger's rent to the donor and close the account so no
@@ -128,17 +119,12 @@ pub fn handler<'a>(ctx: Context<'a, RefundAll<'a>>) -> Result<()> {
     // Sweep the vault's rent reserve back to the creator and empty the vault.
     let residual = vault.lamports();
     if residual > 0 {
-        system_program::transfer(
-            CpiContext::new_with_signer(
-                system_program::ID,
-                system_program::Transfer {
-                    from: vault.clone(),
-                    to: ctx.accounts.creator.to_account_info(),
-                },
-                &[vault_seeds],
-            ),
-            residual,
-        )?;
+        **vault.try_borrow_mut_lamports()? = 0;
+        let creator_info = ctx.accounts.creator.to_account_info();
+        let creator_balance = creator_info.lamports();
+        **creator_info.try_borrow_mut_lamports()? = creator_balance
+            .checked_add(residual)
+            .ok_or(CharityVaultError::ArithmeticOverflow)?;
     }
     Ok(())
 }

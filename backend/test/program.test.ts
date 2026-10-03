@@ -154,8 +154,8 @@ test('instruction plans expose the expected accounts', async () => {
   assert.equal(finalize.accounts.length, 2);
   assert.equal(finalize.dataHex, 'ab3dda387f730cd9');
 
-  const refundAll = await refundAllPlan({ caller: DONOR, campaign: CAMPAIGN, donors: [DONOR, DONOR_TWO] });
-  assert.equal(refundAll.accounts.length, 3 + 4);
+  const refundAll = await refundAllPlan({ caller: DONOR, campaign: CAMPAIGN, creator: CREATOR, donors: [DONOR, DONOR_TWO] });
+  assert.equal(refundAll.accounts.length, 4 + 4);
   assert.equal(refundAll.dataHex, 'ae57de7e173bbd9b');
 
   const claim = await claimRefundPlan({ donor: DONOR, campaign: CAMPAIGN });
