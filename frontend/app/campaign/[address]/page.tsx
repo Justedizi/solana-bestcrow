@@ -93,8 +93,12 @@ export default function Detail() {
   }, []);
 
   async function send(build: () => Promise<Instruction>, label: string) {
-    if (!wallet) {
+    if (!connected || !wallet) {
       setStatus('Connect a wallet first.');
+      return;
+    }
+    if (!connected.signer) {
+      setStatus('This wallet cannot sign transactions. Use Phantom on Devnet.');
       return;
     }
     setBusy(true);
@@ -102,7 +106,7 @@ export default function Detail() {
     setStatus(label);
     try {
       const instruction = await build();
-      const sig = await sendCampaignInstruction(client, wallet, instruction);
+      const sig = await sendCampaignInstruction(client, wallet, connected.signer, instruction);
       setSignature(sig);
       setStatus(`${label} confirmed.`);
       await load();
