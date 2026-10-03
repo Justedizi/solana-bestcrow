@@ -132,9 +132,13 @@ npm run dev
 | Anchor program (6 instructions, 3 PDAs) | Implemented; compiles |
 | LiteSVM tests (refund, success, batch `refund_all`) | Passing |
 | Frontend (list/create/detail, wallet, explorer links) | Implemented; typecheck + production build pass |
-| Devnet deployment | **Pending** — deploy plan ready; nothing deployed yet |
+| Devnet deployment | **Live** — program deployed and exercised end-to-end on devnet |
 
-Program ID (devnet, not yet deployed): `F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3`.
+Program ID (devnet): `F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3`
+([explorer](https://explorer.solana.com/address/F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3?cluster=devnet)).
+
+End-to-end devnet smoke test: `node frontend/scripts/devnet-smoke.mjs`
+(create → pledge → finalize → refund, printing confirmed explorer links).
 
 ---
 
