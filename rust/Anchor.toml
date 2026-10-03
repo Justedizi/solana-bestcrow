@@ -6,14 +6,11 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
+bestcrow = "EousWVK2cePYb9zvv1oWSca4VNdRQqYef8CsxQ6BL57R"
 
 [programs.devnet]
-charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
+bestcrow = "EousWVK2cePYb9zvv1oWSca4VNdRQqYef8CsxQ6BL57R"
 
 [provider]
 cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
-
-[scripts]
-test = "cargo test --manifest-path programs/charity-vault/Cargo.toml"

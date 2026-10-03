@@ -2,107 +2,73 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Cancel superseded runs on the same ref to keep the queue short.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   program:
-    name: Program · build + LiteSVM tests
+    name: Anchor program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose --profile tools run --rm anchor cargo fmt --all -- --check
+      - run: docker compose --profile tools run --rm anchor cargo test --workspace --locked
+      - run: docker compose --profile tools run --rm anchor cargo build-sbf --manifest-path programs/bestcrow/Cargo.toml --sbf-out-dir /tmp/bestcrow-sbf --arch v0
+
+  client:
+    name: Generated client
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: rust
     steps:
       - uses: actions/checkout@v4
-
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
         with:
-          components: rustfmt
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Cache Solana platform-tools
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/solana
-          key: solana-platform-tools-${{ runner.os }}
-          restore-keys: solana-platform-tools-${{ runner.os }}-
-
-      - name: Install Solana CLI
-        run: |
-          if ! command -v cargo-build-sbf >/dev/null 2>&1; then
-            sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          fi
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-
-      - name: Format check
-        run: cargo fmt --all --check
-
-      # Produce target/deploy/charity_vault.so, which the LiteSVM tests load.
-      # --sbf-out-dir places the artifact in target/deploy (what `anchor build` and
-      # the test harness expect); cargo-build-sbf would otherwise emit it to
-      # target/sbpf-solana-solana/release.
-      # --arch v0 is required by the installed platform-tools target (see rust/README.md).
-      - name: Build SBF program
-        run: |
-          set -euo pipefail
-          cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0 --sbf-out-dir target/deploy
-
-      - name: Run LiteSVM integration tests
-        run: cargo test --manifest-path programs/charity-vault/Cargo.toml
+          node-version: 22.16.0
+          cache: npm
+          cache-dependency-path: rust/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run check:client
 
   backend:
-    name: Backend · typecheck + tests + build
+    name: Backend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
-      - name: Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          # node:sqlite is stable from Node 22.13+/24; engines requires >=22.5.
-          node-version: 24
+          node-version: 22.16.0
           cache: npm
           cache-dependency-path: backend/package-lock.json
-
-      - run: npm ci
-      - run: npm run typecheck
+      - run: npm ci --ignore-scripts
+      - run: npm run check
       - run: npm test
-      - run: npm run build
 
   frontend:
-    name: Frontend · typecheck + tests + build
+    name: Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-
-      - name: Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22.16.0
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
+      - run: npm ci --ignore-scripts
+      - run: npm run check
       - run: npm run build

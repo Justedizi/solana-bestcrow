@@ -1,13 +1,21 @@
-FROM node:22-bookworm-slim
+FROM node:22.16.0-alpine@sha256:41e4389f3d988d2ed55392df4db1420ad048ae53324a8e2b7c6d19508288107e
 
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit
+COPY . .
+ARG NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+ENV NEXT_PUBLIC_SOLANA_RPC_URL=${NEXT_PUBLIC_SOLANA_RPC_URL}
+ARG NEXT_PUBLIC_META_DAO_PROGRAM_ID=FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq
+ENV NEXT_PUBLIC_META_DAO_PROGRAM_ID=${NEXT_PUBLIC_META_DAO_PROGRAM_ID}
+ARG NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID=VLTX1ishMBbcX3rdBWGssxawAo1Q2X2qxYFYqiGodVg
+ENV NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID=${NEXT_PUBLIC_CONDITIONAL_VAULT_PROGRAM_ID}
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+RUN chown -R node:node /app/.next
 
-COPY --chown=node:node package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
-
-COPY --chown=node:node . .
-RUN chown node:node /app
-
+ENV NODE_ENV=production
+ENV PORT=3000
 USER node
 EXPOSE 3000
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+CMD ["npm", "start"]

@@ -1,5 +1,7 @@
 # Bestcrow agent setup and development instructions
 
+> The Charity Vault and weighted-voting commands below describe the earlier `main` branch. On `v2`, use the root `README.md`, `compose.yaml`, and `rust/programs/bestcrow`. The Context7/Solana documentation lookup guidance remains applicable when those MCP tools are available.
+
 **The PDFs in `docs/` have the highest project priority.** Read them first and follow [AGENTS.md](AGENTS.md) for source precedence and conflicts. [CONTEXT.md](CONTEXT.md) is a secondary summary; setup guidance, skills, and MCP documentation must fit the PDF requirements. Run all commands below from the repository root.
 
 Use the MCP setup already in this repository. Do not install a new server package or edit a user's global MCP config unless the existing launch path fails and the user asks for that change.

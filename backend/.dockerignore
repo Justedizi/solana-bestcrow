@@ -1,7 +1,0 @@
-node_modules
-dist
-dist-test
-data
-.env
-.env.*
-*.log

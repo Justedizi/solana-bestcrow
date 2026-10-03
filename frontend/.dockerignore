@@ -1,6 +1,4 @@
 node_modules
 .next
-.env
-.env.*
+.env*
 *.tsbuildinfo
-*.log
