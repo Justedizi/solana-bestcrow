@@ -96,8 +96,10 @@ pub fn claim_termination_refund<'a>(ctx: Context<'a, ClaimTerminationRefund<'a>>
     let ledger = &ctx.accounts.ledger;
     require!(!ledger.claimed, CharityVaultError::AlreadyClaimed);
 
-    let share =
-        (ledger.amount as u128 * campaign.refund_pool as u128 / campaign.raised as u128) as u64;
+    let numerator = (ledger.amount as u128)
+        .checked_mul(campaign.refund_pool as u128)
+        .ok_or(CharityVaultError::ArithmeticOverflow)?;
+    let share = (numerator / campaign.raised as u128) as u64;
     let vault = ctx.accounts.vault.to_account_info();
     require!(
         vault.lamports() >= share,

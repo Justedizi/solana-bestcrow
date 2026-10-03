@@ -25,10 +25,30 @@ const SOL: u64 = 1_000_000_000;
 const RENT: u64 = 890_880;
 /// Derived from the on-chain `MAX_DONORS` so a constant change can never silently
 /// desync the test layout from the program (and the TS mirrors in backend/frontend).
-const CAMPAIGN_SIZE: usize =
-    8 + 32 + 8 + 8 + 8 + 32 + 8 + 1 + 1 + 1 + charity_vault::constants::MAX_DONORS * 32 + 1
-        + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 8 + 1 + 8 + 1;
-const LEDGER_SIZE: usize = 8 + 32 + 32 + 8 + 1 + 1;
+const CAMPAIGN_SIZE: usize = 8
+    + 32
+    + 8
+    + 8
+    + 8
+    + 32
+    + 8
+    + 1
+    + 1
+    + 1
+    + charity_vault::constants::MAX_DONORS * 32
+    + 1
+    + 1
+    + 8
+    + 8
+    + 8
+    + 8
+    + 1
+    + 1
+    + 1
+    + 8
+    + 1
+    + 8
+    + 1;
 
 fn program_id() -> Address {
     Address::new_from_array(charity_vault::ID.to_bytes())
@@ -569,8 +589,7 @@ const SET_SPLIT: [u8; 8] = [133, 67, 66, 245, 114, 175, 32, 51];
 const RELEASE_TRANCHE: [u8; 8] = [156, 137, 159, 5, 80, 38, 133, 227];
 const WITHDRAW_CLAIM: [u8; 8] = [116, 25, 120, 4, 45, 166, 253, 106];
 const TERMINATE: [u8; 8] = [40, 31, 99, 52, 83, 243, 37, 201];
-const CLAIM_TERMINATION_REFUND: [u8; 8] =
-    [55, 151, 155, 139, 208, 168, 96, 108];
+const CLAIM_TERMINATION_REFUND: [u8; 8] = [55, 151, 155, 139, 208, 168, 96, 108];
 const CLAIM_BOND: [u8; 8] = [173, 34, 157, 61, 45, 120, 246, 11];
 
 /// MilestoneStatus is a u8 enum; offset of `status` in MilestoneAccount.
@@ -602,7 +621,8 @@ fn vote_pda(milestone: &Address, round: u8, backer: &Address) -> Address {
 
 fn claim_pda(campaign: &Address, index: u8) -> Address {
     to_address(
-        Pubkey::find_program_address(&[b"claim", campaign.as_ref(), &[index]], &charity_vault::ID).0,
+        Pubkey::find_program_address(&[b"claim", campaign.as_ref(), &[index]], &charity_vault::ID)
+            .0,
     )
 }
 
@@ -680,7 +700,12 @@ fn add_milestone_ix(
     )
 }
 
-fn submit_evidence_ix(creator: &Address, campaign: &Address, index: u8, hash: [u8; 32]) -> Instruction {
+fn submit_evidence_ix(
+    creator: &Address,
+    campaign: &Address,
+    index: u8,
+    hash: [u8; 32],
+) -> Instruction {
     let mut data = SUBMIT_EVIDENCE.to_vec();
     data.push(index);
     data.extend_from_slice(&hash);
@@ -694,7 +719,13 @@ fn submit_evidence_ix(creator: &Address, campaign: &Address, index: u8, hash: [u
     )
 }
 
-fn vote_ix(backer: &Address, campaign: &Address, index: u8, round: u8, approve: bool) -> Instruction {
+fn vote_ix(
+    backer: &Address,
+    campaign: &Address,
+    index: u8,
+    round: u8,
+    approve: bool,
+) -> Instruction {
     let milestone = milestone_pda(campaign, index);
     let mut data = VOTE_MILESTONE.to_vec();
     data.push(index);
@@ -736,7 +767,12 @@ fn release_initial_ix(creator: &Address, campaign: &Address) -> Instruction {
     )
 }
 
-fn release_tranche_ix(creator: &Address, campaign: &Address, index: u8, duration: i64) -> Instruction {
+fn release_tranche_ix(
+    creator: &Address,
+    campaign: &Address,
+    index: u8,
+    duration: i64,
+) -> Instruction {
     let mut data = RELEASE_TRANCHE.to_vec();
     data.push(index);
     data.extend_from_slice(&duration.to_le_bytes());
@@ -752,7 +788,12 @@ fn release_tranche_ix(creator: &Address, campaign: &Address, index: u8, duration
     )
 }
 
-fn set_split_ix(creator: &Address, campaign: &Address, recipients: &[Address], shares: &[u16]) -> Instruction {
+fn set_split_ix(
+    creator: &Address,
+    campaign: &Address,
+    recipients: &[Address],
+    shares: &[u16],
+) -> Instruction {
     let mut data = SET_SPLIT.to_vec();
     data.extend_from_slice(&vec_pubkeys(recipients));
     data.extend_from_slice(&vec_u16(shares));
@@ -854,68 +895,143 @@ fn staged_approve_release_stream_and_bond() {
 
     send(
         &mut svm,
-        &[create_staged_ix(&creator.pubkey(), id, goal, now + 3_600, base, initial, bond)],
+        &[create_staged_ix(
+            &creator.pubkey(),
+            id,
+            goal,
+            now + 3_600,
+            base,
+            initial,
+            bond,
+        )],
         &creator,
         &[],
     );
     send(
         &mut svm,
-        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [9u8; 32])],
+        &[add_milestone_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            2 * SOL,
+            now + 7_200,
+            [9u8; 32],
+        )],
         &creator,
         &[],
     );
     send(
         &mut svm,
-        &[add_milestone_ix(&creator.pubkey(), &campaign, 1, 2 * SOL, now + 7_200, [9u8; 32])],
+        &[add_milestone_ix(
+            &creator.pubkey(),
+            &campaign,
+            1,
+            2 * SOL,
+            now + 7_200,
+            [9u8; 32],
+        )],
         &creator,
         &[],
     );
-    send(&mut svm, &[pledge_ix(&donor.pubkey(), &campaign, goal)], &donor, &[]);
+    send(
+        &mut svm,
+        &[pledge_ix(&donor.pubkey(), &campaign, goal)],
+        &donor,
+        &[],
+    );
 
     let mut clock = svm.get_sysvar::<Clock>();
     clock.unix_timestamp = now + 7_200;
     svm.set_sysvar(&clock);
     let caller = Keypair::new();
     fund(&mut svm, &caller);
-    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
+    send(
+        &mut svm,
+        &[finalize_ix(&caller.pubkey(), &campaign)],
+        &caller,
+        &[],
+    );
     assert_eq!(campaign_data(&svm, &campaign)[105], 1, "campaign Succeeded");
 
     // Initial tranche is released immediately.
     let before = svm.get_balance(&creator.pubkey()).unwrap();
-    send(&mut svm, &[release_initial_ix(&creator.pubkey(), &campaign)], &creator, &[]);
+    send(
+        &mut svm,
+        &[release_initial_ix(&creator.pubkey(), &campaign)],
+        &creator,
+        &[],
+    );
     let after = svm.get_balance(&creator.pubkey()).unwrap();
     assert!(after >= before + initial - 10_000, "initial tranche paid");
 
     // Milestone 0: evidence, unanimous approval, release, withdraw.
     send(
         &mut svm,
-        &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [5u8; 32])],
+        &[submit_evidence_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            [5u8; 32],
+        )],
         &creator,
         &[],
     );
-    send(&mut svm, &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)], &donor, &[]);
-    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    send(
+        &mut svm,
+        &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)],
+        &donor,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)],
+        &caller,
+        &[],
+    );
     assert_eq!(
         svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
         3,
         "milestone Released"
     );
-    send(&mut svm, &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)], &creator, &[]);
+    send(
+        &mut svm,
+        &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)],
+        &creator,
+        &[],
+    );
 
     let before2 = svm.get_balance(&creator.pubkey()).unwrap();
     let creator_addr = creator.pubkey();
     send(
         &mut svm,
-        &[withdraw_claim_ix(&caller.pubkey(), &campaign, 0, &campaign, &[creator_addr])],
+        &[withdraw_claim_ix(
+            &caller.pubkey(),
+            &campaign,
+            0,
+            &campaign,
+            &[creator_addr],
+        )],
         &caller,
         &[],
     );
     let after2 = svm.get_balance(&creator.pubkey()).unwrap();
-    assert!(after2 >= before2 + 2 * SOL - 10_000, "tranche paid to creator");
+    assert!(
+        after2 >= before2 + 2 * SOL - 10_000,
+        "tranche paid to creator"
+    );
 
     // The bond is returned once the campaign is not terminated.
-    send(&mut svm, &[claim_bond_ix(&creator.pubkey(), &campaign)], &creator, &[]);
-    assert_eq!(svm.get_balance(&bond_pda(&campaign)).unwrap_or(0), 0, "bond returned");
+    send(
+        &mut svm,
+        &[claim_bond_ix(&creator.pubkey(), &campaign)],
+        &creator,
+        &[],
+    );
+    assert_eq!(
+        svm.get_balance(&bond_pda(&campaign)).unwrap_or(0),
+        0,
+        "bond returned"
+    );
 }
 
 #[test]
@@ -935,31 +1051,86 @@ fn staged_revision_then_terminate_refunds_pro_rata() {
 
     send(
         &mut svm,
-        &[create_staged_ix(&creator.pubkey(), id, goal, now + 3_600, 5 * SOL, SOL, SOL / 2)],
+        &[create_staged_ix(
+            &creator.pubkey(),
+            id,
+            goal,
+            now + 3_600,
+            5 * SOL,
+            SOL,
+            SOL / 2,
+        )],
         &creator,
         &[],
     );
     send(
         &mut svm,
-        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [4u8; 32])],
+        &[add_milestone_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            2 * SOL,
+            now + 7_200,
+            [4u8; 32],
+        )],
         &creator,
         &[],
     );
-    send(&mut svm, &[pledge_ix(&donor_a.pubkey(), &campaign, 3 * SOL)], &donor_a, &[]);
-    send(&mut svm, &[pledge_ix(&donor_b.pubkey(), &campaign, 2 * SOL)], &donor_b, &[]);
+    send(
+        &mut svm,
+        &[pledge_ix(&donor_a.pubkey(), &campaign, 3 * SOL)],
+        &donor_a,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[pledge_ix(&donor_b.pubkey(), &campaign, 2 * SOL)],
+        &donor_b,
+        &[],
+    );
 
     let mut clock = svm.get_sysvar::<Clock>();
     clock.unix_timestamp = now + 7_200;
     svm.set_sysvar(&clock);
     let caller = Keypair::new();
     fund(&mut svm, &caller);
-    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
-    send(&mut svm, &[release_initial_ix(&creator.pubkey(), &campaign)], &creator, &[]);
+    send(
+        &mut svm,
+        &[finalize_ix(&caller.pubkey(), &campaign)],
+        &caller,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[release_initial_ix(&creator.pubkey(), &campaign)],
+        &creator,
+        &[],
+    );
 
     // First vote fails (only donor_b rejects, approval 0%) -> Revision.
-    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [4u8; 32])], &creator, &[]);
-    send(&mut svm, &[vote_ix(&donor_b.pubkey(), &campaign, 0, 1, false)], &donor_b, &[]);
-    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    send(
+        &mut svm,
+        &[submit_evidence_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            [4u8; 32],
+        )],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[vote_ix(&donor_b.pubkey(), &campaign, 0, 1, false)],
+        &donor_b,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)],
+        &caller,
+        &[],
+    );
     assert_eq!(
         svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
         2,
@@ -968,11 +1139,31 @@ fn staged_revision_then_terminate_refunds_pro_rata() {
 
     // Second vote fails -> Rejected, campaign has a rejection.
     warp(&mut svm);
-    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [5u8; 32])], &creator, &[]);
+    send(
+        &mut svm,
+        &[submit_evidence_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            [5u8; 32],
+        )],
+        &creator,
+        &[],
+    );
     warp(&mut svm);
-    send(&mut svm, &[vote_ix(&donor_b.pubkey(), &campaign, 0, 2, false)], &donor_b, &[]);
+    send(
+        &mut svm,
+        &[vote_ix(&donor_b.pubkey(), &campaign, 0, 2, false)],
+        &donor_b,
+        &[],
+    );
     warp(&mut svm);
-    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
+    send(
+        &mut svm,
+        &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)],
+        &caller,
+        &[],
+    );
     assert_eq!(
         svm.get_account(&milestone_pda(&campaign, 0)).unwrap().data[MILESTONE_STATUS_OFFSET],
         4,
@@ -980,16 +1171,33 @@ fn staged_revision_then_terminate_refunds_pro_rata() {
     );
 
     // Anyone can terminate once a milestone is rejected; the bond is forfeited.
-    send(&mut svm, &[terminate_ix(&caller.pubkey(), &campaign)], &caller, &[]);
-    assert_eq!(campaign_data(&svm, &campaign)[526], 1, "campaign terminated");
-    assert_eq!(svm.get_balance(&bond_pda(&campaign)).unwrap_or(0), 0, "bond forfeited");
+    send(
+        &mut svm,
+        &[terminate_ix(&caller.pubkey(), &campaign)],
+        &caller,
+        &[],
+    );
+    assert_eq!(
+        campaign_data(&svm, &campaign)[526],
+        1,
+        "campaign terminated"
+    );
+    assert_eq!(
+        svm.get_balance(&bond_pda(&campaign)).unwrap_or(0),
+        0,
+        "bond forfeited"
+    );
 
     // Donors claim their pro-rata share of the frozen pool.
     let pool = u64_at(&campaign_data(&svm, &campaign), 537);
     let a_before = svm.get_balance(&donor_a.pubkey()).unwrap();
     send(
         &mut svm,
-        &[claim_termination_refund_ix(&donor_a.pubkey(), &campaign, &creator.pubkey())],
+        &[claim_termination_refund_ix(
+            &donor_a.pubkey(),
+            &campaign,
+            &creator.pubkey(),
+        )],
         &donor_a,
         &[],
     );
@@ -1001,7 +1209,11 @@ fn staged_revision_then_terminate_refunds_pro_rata() {
     );
     send(
         &mut svm,
-        &[claim_termination_refund_ix(&donor_b.pubkey(), &campaign, &creator.pubkey())],
+        &[claim_termination_refund_ix(
+            &donor_b.pubkey(),
+            &campaign,
+            &creator.pubkey(),
+        )],
         &donor_b,
         &[],
     );
@@ -1028,34 +1240,89 @@ fn staged_split_distributes_release() {
     let campaign = campaign_pda(&creator.pubkey(), id);
     send(
         &mut svm,
-        &[create_staged_ix(&creator.pubkey(), id, 4 * SOL, now + 3_600, 4 * SOL, 0, 0)],
+        &[create_staged_ix(
+            &creator.pubkey(),
+            id,
+            4 * SOL,
+            now + 3_600,
+            4 * SOL,
+            0,
+            0,
+        )],
         &creator,
         &[],
     );
     send(
         &mut svm,
-        &[set_split_ix(&creator.pubkey(), &campaign, &[r1.pubkey(), r2.pubkey()], &[6_000, 4_000])],
+        &[set_split_ix(
+            &creator.pubkey(),
+            &campaign,
+            &[r1.pubkey(), r2.pubkey()],
+            &[6_000, 4_000],
+        )],
         &creator,
         &[],
     );
     send(
         &mut svm,
-        &[add_milestone_ix(&creator.pubkey(), &campaign, 0, 2 * SOL, now + 7_200, [2u8; 32])],
+        &[add_milestone_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            2 * SOL,
+            now + 7_200,
+            [2u8; 32],
+        )],
         &creator,
         &[],
     );
-    send(&mut svm, &[pledge_ix(&donor.pubkey(), &campaign, 4 * SOL)], &donor, &[]);
+    send(
+        &mut svm,
+        &[pledge_ix(&donor.pubkey(), &campaign, 4 * SOL)],
+        &donor,
+        &[],
+    );
 
     let mut clock = svm.get_sysvar::<Clock>();
     clock.unix_timestamp = now + 7_200;
     svm.set_sysvar(&clock);
     let caller = Keypair::new();
     fund(&mut svm, &caller);
-    send(&mut svm, &[finalize_ix(&caller.pubkey(), &campaign)], &caller, &[]);
-    send(&mut svm, &[submit_evidence_ix(&creator.pubkey(), &campaign, 0, [2u8; 32])], &creator, &[]);
-    send(&mut svm, &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)], &donor, &[]);
-    send(&mut svm, &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)], &caller, &[]);
-    send(&mut svm, &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)], &creator, &[]);
+    send(
+        &mut svm,
+        &[finalize_ix(&caller.pubkey(), &campaign)],
+        &caller,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[submit_evidence_ix(
+            &creator.pubkey(),
+            &campaign,
+            0,
+            [2u8; 32],
+        )],
+        &creator,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[vote_ix(&donor.pubkey(), &campaign, 0, 1, true)],
+        &donor,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[finalize_vote_ix(&caller.pubkey(), &campaign, 0)],
+        &caller,
+        &[],
+    );
+    send(
+        &mut svm,
+        &[release_tranche_ix(&creator.pubkey(), &campaign, 0, 0)],
+        &creator,
+        &[],
+    );
 
     let r1_before = svm.get_balance(&r1.pubkey()).unwrap();
     let r2_before = svm.get_balance(&r2.pubkey()).unwrap();
@@ -1073,7 +1340,12 @@ fn staged_split_distributes_release() {
     );
     let r1_after = svm.get_balance(&r1.pubkey()).unwrap();
     let r2_after = svm.get_balance(&r2.pubkey()).unwrap();
-    assert!(r1_after >= r1_before + (2 * SOL * 6 / 10) - 10_000, "recipient 1 got 60%");
-    assert!(r2_after >= r2_before + (2 * SOL * 4 / 10) - 10_000, "recipient 2 got 40%");
+    assert!(
+        r1_after >= r1_before + (2 * SOL * 6 / 10) - 10_000,
+        "recipient 1 got 60%"
+    );
+    assert!(
+        r2_after >= r2_before + (2 * SOL * 4 / 10) - 10_000,
+        "recipient 2 got 40%"
+    );
 }
-
