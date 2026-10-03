@@ -1,4 +1,15 @@
-import type { Address, Instruction } from '@solana/kit';
+import type { Address, Instruction, TransactionSigner } from '@solana/kit';
+import {
+  appendTransactionMessageInstruction,
+  assertIsTransactionWithBlockhashLifetime,
+  createTransactionMessage,
+  getSignatureFromTransaction,
+  pipe,
+  sendAndConfirmTransactionFactory,
+  setTransactionMessageFeePayerSigner,
+  setTransactionMessageLifetimeUsingBlockhash,
+  signTransactionMessageWithSigners,
+} from '@solana/kit';
 import type { AppClient } from '../providers';
 
 const LAMPORTS_PER_SOL = 1_000_000_000n;
@@ -59,32 +70,50 @@ async function assertFeePayerFunded(client: AppClient, payer: Address): Promise<
 }
 
 /**
- * Check funding, then submit a single signed transaction and wait for
- * confirmation.
+ * Sign a single instruction with the connected wallet and send it.
  *
- * `client.sendTransaction` plans, signs, simulates (for resource limits) and
- * sends through the same client the wallet plugin is attached to, so the
- * simulation reflects the transaction that is actually submitted. Any nested
- * RPC error is unwrapped by {@link describeSendError}.
+ * We build the v0 message ourselves and sign it with the wallet's own signer
+ * (`signTransactionMessageWithSigners`) instead of relying on
+ * `client.sendTransaction`. That path works for every Wallet Standard wallet:
+ * Phantom commonly exposes `signTransaction` but not `signAndSendTransaction`,
+ * and the dynamic wallet payer is not always resolved inside the plan executor.
+ * Confirmation uses the client's websocket subscriptions.
  */
-export async function sendCampaignInstruction(client: AppClient, payer: Address, ix: Instruction) {
+export async function sendCampaignInstruction(
+  client: AppClient,
+  payer: Address,
+  signer: TransactionSigner,
+  ix: Instruction,
+): Promise<string> {
   await assertFeePayerFunded(client, payer);
 
-  const result = await (async () => {
+  const { value: latestBlockhash } = await client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
+
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayerSigner(signer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+    (m) => appendTransactionMessageInstruction(ix, m),
+  );
+
+  const signed = await (async () => {
     try {
-      return await client.sendTransaction([ix]);
+      return await signTransactionMessageWithSigners(message);
     } catch (error) {
       throw new Error(describeSendError(error));
     }
   })();
-  const signature = result.context.signature;
-  // A signature alone is not proof of success; wait for chain confirmation.
-  for (let attempt = 0; attempt < 45; attempt++) {
-    const statuses = await client.rpc.getSignatureStatuses([signature]).send();
-    const status = statuses.value[0];
-    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
-    if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') return signature;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  assertIsTransactionWithBlockhashLifetime(signed);
+
+  const signature = getSignatureFromTransaction(signed);
+  const sendAndConfirm = sendAndConfirmTransactionFactory({
+    rpc: client.rpc,
+    rpcSubscriptions: client.rpcSubscriptions,
+  });
+  try {
+    await sendAndConfirm(signed, { commitment: 'confirmed' });
+  } catch (error) {
+    throw new Error(describeSendError(error));
   }
-  throw new Error(`Confirmation is taking longer than expected. Check transaction ${signature} on Solana Explorer.`);
+  return signature;
 }

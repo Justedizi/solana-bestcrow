@@ -52,7 +52,10 @@ export default function New() {
       const deadline = Math.floor(Date.now() / 1000) + seconds;
       const descHash = await digest(description.trim());
       const { campaign, ix } = await createCampaignIx(creator, campaignId, parseSol(goal), deadline, descHash);
-      const sig = await sendCampaignInstruction(client, creator, ix);
+      if (!connected.signer) {
+        throw new Error('This wallet cannot sign transactions. Use Phantom on Devnet.');
+      }
+      const sig = await sendCampaignInstruction(client, creator, connected.signer, ix);
       setSignature(sig);
       setStatus('Campaign created. Redirecting…');
       router.push(`/campaign/${campaign}`);
