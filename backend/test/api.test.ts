@@ -80,7 +80,7 @@ before(async () => {
   });
 
   const app = createServer(store);
-  server = app.listen(0);
+  server = app.listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', () => resolve()));
   const info = server.address();
   if (!info || typeof info === 'string') throw new Error('no port');

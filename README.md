@@ -34,3 +34,32 @@ Milestone crowdfunding already exists. Our intended distinction is a clear workf
 - [Environment and MCP setup](agents/INSTRUCTIONS.md)
 
 **First build:** a devnet campaign with five milestones, an initial release, a failed first vote, a seven-day revision state, a successful second vote, and a termination/refund path. Any merchandise integration or profit sharing should be clearly labelled as simulated/future scope.
+
+## Docker development environment
+
+The Compose stack runs the Next.js frontend and the Node.js API/indexer against
+Solana devnet. Docker Compose is required; the Rust/Anchor build and deployment
+commands in `rust/README.md` remain separate from this app stack.
+
+```sh
+# From the repository root, with the Docker daemon running:
+docker compose up --build --watch
+```
+
+- Frontend: <http://localhost:3000>
+- API health: <http://localhost:4000/api/health>
+- Edit `frontend/app` or `backend/src` for live updates. Package changes rebuild
+  the corresponding image. If you do not need file watching, use
+  `docker compose up --build`.
+- Run the backend checks in the container with
+  `docker compose run --rm backend npm test`.
+- Copy `.env.example` to `.env` to change RPC endpoints, program ID, CORS, or
+  indexer settings. The frontend RPC URL is public in the browser; use a
+  browser-safe endpoint there. Both services default to devnet.
+- SQLite lives in the `backend-data` Docker volume, independent of
+  `backend/data` on the host. `docker compose down` keeps it; `docker compose
+  down -v` deletes it.
+
+The frontend currently selects the devnet wallet chain, so changing the RPC URL
+to localnet alone does not switch the application to a local validator. The
+configured program ID must also exist on the selected cluster.
