@@ -1,0 +1,19 @@
+[toolchain]
+package_manager = "npm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
+
+[programs.devnet]
+charity_vault = "F1EjmWkLJRSYqzwswQCDDADPE8mXNrgiX8AEq17PBdW3"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test --manifest-path programs/charity-vault/Cargo.toml"
