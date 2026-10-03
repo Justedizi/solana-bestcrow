@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useConnectedWallet } from '@solana/kit-plugin-wallet/react';
 import { useClient } from '@solana/react';
-import type { Address } from '@solana/kit';
+import { address, type Address } from '@solana/kit';
 
 import {
   claimRefundIx,
@@ -40,9 +40,10 @@ function countdown(deadline: number, now: number): string {
 
 export default function Detail() {
   const params = useParams<{ address: string }>();
-  const address = params.address as Address;
+  const campaignAddress = params.address as Address;
   const client = useClient<AppClient>();
   const connected = useConnectedWallet(client);
+  const wallet = connected ? address(connected.account.address) : null;
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
@@ -55,10 +56,10 @@ export default function Detail() {
 
   const load = useCallback(async () => {
     try {
-      const result = await getCampaign(client, address);
+      const result = await getCampaign(client, campaignAddress);
       setCampaign(result);
-      if (result && connected) {
-        setLedger(await getLedger(client, address, connected.account.address));
+      if (result && wallet) {
+        setLedger(await getLedger(client, campaignAddress, wallet));
       } else {
         setLedger(null);
       }
@@ -67,7 +68,7 @@ export default function Detail() {
     } finally {
       setLoaded(true);
     }
-  }, [client, address, connected]);
+  }, [client, campaignAddress, wallet]);
 
   useEffect(() => {
     void load();
@@ -79,7 +80,7 @@ export default function Detail() {
   }, []);
 
   async function run(build: () => Promise<import('@solana/kit').Instruction>, label: string) {
-    if (!connected) {
+    if (!wallet) {
       setStatus('Connect a wallet first.');
       return;
     }
@@ -88,7 +89,7 @@ export default function Detail() {
     setStatus(label);
     try {
       const instruction = await build();
-      const sig = await sendCampaignInstruction(client, connected.account.address, instruction);
+      const sig = await sendCampaignInstruction(client, wallet, instruction);
       setSignature(sig);
       setStatus(`${label} confirmed.`);
       await load();
@@ -114,7 +115,7 @@ export default function Detail() {
   const raised = Number(formatSol(campaign.raised));
   const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
   const deadlinePassed = campaign.deadline * 1000 <= now;
-  const isCreator = connected?.account.address === campaign.creator;
+  const isCreator = wallet === campaign.creator;
   const statusText =
     campaign.status === 'Active' ? 'FUNDING OPEN' : campaign.status === 'Succeeded' ? 'GOAL REACHED' : 'REFUNDING';
 
@@ -191,7 +192,7 @@ export default function Detail() {
                   try {
                     const value = parseSol(amount);
                     void run(
-                      () => pledgeIx(connected!.account.address, campaign.address, value),
+                      () => pledgeIx(wallet!, campaign.address, value),
                       'Pledging…',
                     );
                   } catch (err) {
@@ -209,7 +210,7 @@ export default function Detail() {
               className="button coral"
               type="button"
               disabled={busy || !connected}
-              onClick={() => void run(() => finalizeIx(connected!.account.address, campaign.address), 'Finalizing…')}
+              onClick={() => void run(() => finalizeIx(wallet!, campaign.address), 'Finalizing…')}
             >
               Finalize outcome ↗
             </button>
@@ -221,7 +222,7 @@ export default function Detail() {
               type="button"
               disabled={busy || campaign.paid}
               onClick={() =>
-                void run(() => claimSuccessIx(connected!.account.address, campaign.address), 'Claiming…')
+                void run(() => claimSuccessIx(wallet!, campaign.address), 'Claiming…')
               }
             >
               {campaign.paid ? 'Funds already claimed' : 'Claim funds ↗'}
@@ -233,7 +234,7 @@ export default function Detail() {
               className="button coral"
               type="button"
               disabled={busy || !connected}
-              onClick={() => void run(() => claimRefundIx(connected!.account.address, campaign.address), 'Refunding…')}
+              onClick={() => void run(() => claimRefundIx(wallet!, campaign.address), 'Refunding…')}
             >
               Claim your {formatSol(ledger.amount)} SOL refund ↗
             </button>
@@ -246,7 +247,7 @@ export default function Detail() {
               disabled={busy || !connected}
               onClick={() =>
                 void run(
-                  () => refundAllIx(connected!.account.address, campaign),
+                  () => refundAllIx(wallet!, campaign),
                   'Refunding everyone in one transaction…',
                 )
               }

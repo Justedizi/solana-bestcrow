@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useConnectedWallet } from '@solana/kit-plugin-wallet/react';
 import { useClient } from '@solana/react';
+import { address } from '@solana/kit';
 
 import {
   createCampaignIx,
@@ -44,7 +45,7 @@ export default function New() {
     setBusy(true);
     try {
       setStatus('Awaiting wallet signature…');
-      const creator = connected.account.address;
+      const creator = address(connected.account.address);
       const campaignId = BigInt(Date.now());
       const deadline = Math.floor(Date.now() / 1000) + seconds;
       const descHash = await digest(description.trim());
