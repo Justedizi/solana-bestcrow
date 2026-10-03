@@ -328,4 +328,3 @@ The honest sentence: **we are not "better than MetaDAO".** We implement a determ
 If you want to win, the checklist runs itself — build the 5-instruction simple version, ship it live, and make refund_all the demo's climactic beat. That's the whole game.
 >>>>>>> 7eb812d7aa478b2434c25e7972d91e19a55dd742
 >>>>>>> main
-  .
