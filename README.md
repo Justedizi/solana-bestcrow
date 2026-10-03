@@ -1,31 +1,36 @@
 # Bestcrow
 
-**A peer-to-peer item marketplace with payments held in Solana escrow.**
+**Crowdfunding on Solana where backers approve progress before more money is released.**
 
-Built for **HackYeah 2026 — Superteam Poland: Finance Without Intermediaries**. The idea is an Allegro/OLX-style experience where the on-chain program holds the buyer's payment and enforces the agreed release/refund rules.
+Built for **HackYeah 2026 — Superteam Poland: Finance Without Intermediaries**. Bestcrow helps early-stage creators and startup teams fund prototypes while giving backers control over further spending.
 
-**Read first:** the [competition rules](docs/RULES%20Finance%20Without%20Intermediaries.pdf) and [challenge criteria](docs/CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf). The PDFs in `docs/` are the highest-priority project requirements; this README and all product proposals must comply with them. See [AGENTS.md](AGENTS.md) for the source-priority policy.
+**Read first:** the [competition rules](docs/RULES%20Finance%20Without%20Intermediaries.pdf) and [challenge criteria](docs/CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf). The PDFs in `docs/` are the highest-priority project requirements. All proposals below must comply with them.
 
-## How it would work
+## Proposed flow
 
-1. Seller lists an item; buyer and seller agree on the price and terms.
-2. Buyer funds an escrow; seller can verify the money is there.
-3. The item is inspected or delivered under the agreed process.
-4. The program releases payment to the seller or refunds the buyer only when the order's rules allow it.
+1. A creator publishes a funding target, deadline, milestone budgets, voting rules, and any rewards.
+2. Backers deposit into campaign escrow. If fundraising fails, contributions become refundable.
+3. If fundraising succeeds, the creator receives an agreed starting budget; the rest stays in escrow.
+4. The creator submits milestone evidence. Backer approval unlocks the next funding stage.
+5. If the campaign stops under its agreed rules, backers can reclaim their share of the remaining refundable funds.
 
-**Proposed first demo:** one item, two wallets, local pickup with inspection, payment confirmation, and a refund for an order the seller never accepts. Use Solana devnet and test assets.
+The proposed MVP uses contribution-weighted voting. The threshold, deadlines, and tranche sizes are still design decisions.
 
-## What this solves — and its limits
+## What this protects
 
-The goal is to reduce the need to trust a marketplace operator with custody and routine settlement. Blockchain can enforce who may move the money; it cannot prove that a physical item arrived or matches its description. Returns and disputed transactions need an explicit policy and may require a trusted resolver. After payout, the original escrow cannot force the seller to refund.
+The proposed program would enforce custody, release permissions, voting outcomes, and refund claims. Backers would be able to stop further funding; money already paid to the creator cannot be recovered by escrow.
+
+Votes express backer approval, not proof that a product works. Digital reward entitlements can be issued automatically. Physical merchandise requires suppliers, delivery, and a separately budgeted fulfilment process.
+
+Milestone crowdfunding already exists. Our intended distinction is a clear workflow for prototype funding with transparent budgets and enforceable remaining-funds protection, rather than a claim to have invented the mechanism.
 
 ## For teammates
 
-**Status: planning and tooling.** A working Bestcrow marketplace has not been verified. Existing escrow examples are external references.
+**Status: product design and development tooling.** A working Bestcrow crowdfunding application has not been verified. Existing escrow programs are external references.
 
-- [Project idea, worst cases, and open decisions](agents/PROJECT.md)
-- [Hackathon requirements and repository context](agents/CONTEXT.md)
-- [Agent and MCP setup](agents/INSTRUCTIONS.md)
-- [Copy-paste environment setup prompt](prompt)
+- [Product model, rewards, risks, and open decisions](agents/PROJECT.md)
+- [Hackathon requirements, repository map, and precedents](agents/CONTEXT.md)
+- [Agent guidance](agents/AGENTS.md)
+- [Environment and MCP setup](agents/INSTRUCTIONS.md)
 
-**First decision:** choose pickup or shipping for the demo, then agree on the payout, refund, and dispute rules before coding them.
+**First build:** a devnet campaign with an initial release, one milestone vote, a successful payout, and a termination/refund path. Any merchandise integration in the demo should be clearly labelled as simulated.
