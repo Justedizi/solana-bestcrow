@@ -18,9 +18,10 @@ pub fn handler(ctx: Context<ClaimSuccess>) -> Result<()> {
         campaign.status == CampaignStatus::Succeeded,
         CharityVaultError::CampaignNotSucceeded
     );
-    let amount = campaign.raised;
     require!(!campaign.paid, CharityVaultError::AlreadyClaimed);
     campaign.paid = true;
+    // Sweep the entire vault (raised funds plus the rent reserve) to the creator.
+    let amount = ctx.accounts.vault.lamports();
     require!(
         ctx.accounts.vault.lamports() >= amount,
         CharityVaultError::InsufficientVaultBalance

@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct RefundAll<'info> {
+    #[account(mut)]
     pub caller: Signer<'info>,
     #[account(mut)]
     pub campaign: Account<'info, CampaignAccount>,
@@ -68,7 +69,9 @@ pub fn handler(ctx: Context<RefundAll>) -> Result<()> {
             donor,
             CharityVaultError::InvalidRefundAccounts
         );
-        require!(!ledger.claimed, CharityVaultError::AlreadyClaimed);
+        if ledger.claimed {
+            continue;
+        }
         let amount = ledger.amount;
         require!(
             vault.lamports() >= amount,
@@ -89,6 +92,20 @@ pub fn handler(ctx: Context<RefundAll>) -> Result<()> {
             donor,
             amount
         });
+    }
+
+    // Sweep the vault's rent reserve to the caller so no lamports are stranded.
+    let residual = vault.lamports();
+    if residual > 0 {
+        **vault.try_borrow_mut_lamports()? = 0;
+        let caller_balance = ctx.accounts.caller.lamports();
+        **ctx
+            .accounts
+            .caller
+            .to_account_info()
+            .try_borrow_mut_lamports()? = caller_balance
+            .checked_add(residual)
+            .ok_or(CharityVaultError::ArithmeticOverflow)?;
     }
     Ok(())
 }

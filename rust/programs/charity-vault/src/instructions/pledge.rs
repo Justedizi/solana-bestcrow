@@ -74,7 +74,7 @@ pub fn handler(ctx: Context<Pledge>, amount: u64) -> Result<()> {
 
     system_program::transfer(
         CpiContext::new(
-            crate::ID,
+            system_program::ID,
             system_program::Transfer {
                 from: ctx.accounts.donor.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
