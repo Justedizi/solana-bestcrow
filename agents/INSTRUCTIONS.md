@@ -6,7 +6,7 @@ Use the MCP setup already in this repository. Do not install a new server packag
 
 ## Current work
 
-Bestcrow now targets startup/prototype crowdfunding with staged releases, backer voting, refunds of remaining escrow, and optional rewards. Read [PROJECT.md](PROJECT.md) after the PDFs. Its numerical voting and budget examples are proposals, not installed protocol behavior.
+Bestcrow now targets startup/prototype crowdfunding with at least five milestones, staged releases, contribution-weighted backer voting, a seven-day revision chance for a result from 50% to below 70%, a stricter show-cause phase below 50%, and refunds of remaining escrow after termination. Read [PROJECT.md](PROJECT.md) after the PDFs. The 70% approval direction comes from the user's latest design; details of the denominator, vote windows, and execution triggers are not yet an implemented protocol.
 
 The local `trustless` MCP target is a freelance escrow reference. Its client approval and cancellation rules are not a crowdfunding implementation. Do not claim that a passing reference build proves our campaign model.
 
@@ -55,9 +55,11 @@ Use `solana_docs` for current Solana and Anchor documentation. Use `surfpool` fo
 
 Identify the campaign's actual source and test commands first; a canonical crowdfunding program has not been established in this checkout. Use local simulations for deadlines, voting and accounting before any authorized devnet demonstration.
 
-Check successful and failed fundraising, exactly-once initial release, contribution-weighted eligibility, vote boundaries/deadlines, rejected and revised milestones, creator disappearance, approved tranche limits, and pro-rata claims from a fixed termination snapshot. Test unauthorized recipients/releases, duplicate ballots and refunds, and attempts to alter funded terms.
+Check the pre-goal pledge and on-chain deposit distinction, successful and failed fundraising, at least five milestones, no allocation above 50% of the base budget, exactly-once initial release, contribution-weighted eligibility, and the 70% approval boundary. Cover a 50%–69.99% first failed vote with seven-day revision, a below-50% show-cause phase, second vote, termination/refund, and creator disappearance. Test missed deadlines and any funded creator bond, as well as pro-rata claims from a fixed termination snapshot. Reject unauthorized recipients/releases, duplicate ballots and refunds, and attempts to alter funded terms.
 
-Keep released, refundable, reward-reserved and fee amounts distinct. Show that they cannot exceed funded assets or spend the same unit twice. Use a known test asset and label simulated supplier events; a reward claim or API response is not proof of delivered merchandise.
+Test overflow and extra-funding proposals separately: creator cannot spend the amount above the original goal without an approved request; a successful extra-funding poll opens an opt-in contribution path rather than minting money or charging wallets. Verify failed polls preserve the existing escrow rules.
+
+Keep base funding, overflow, new-round funding, released, refundable, reward-reserved and fee amounts distinct. Show that they cannot exceed funded assets or spend the same unit twice. If revenue sharing is later implemented, test its separate vault, agreed percentage/cap, and direct claims from actual on-chain receipts. Use a known test asset and label simulated supplier events; a reward claim or API response is not proof of delivered merchandise. Do not claim wallet addresses are anonymous.
 
 Link each demo check to the applicable PDF requirement: criteria p.3 requires on-chain enforcement and confirmed transactions; pp.2–3 require a complete live flow. Record the command, outcome and material gaps rather than treating tool connectivity as passing program tests.
 
