@@ -69,11 +69,15 @@ export class BackendConfig {
     if (keeperAutosend && !keeperKeypairPath) {
       throw new Error("KEEPER_KEYPAIR_PATH is required when KEEPER_AUTOSEND=1");
     }
+    const pollMs = integerSetting("POLL_MS", env.POLL_MS, 0, 0, 86_400_000);
+    if (keeperAutosend && pollMs === 0) {
+      throw new Error("POLL_MS must be positive when KEEPER_AUTOSEND=1");
+    }
     return new BackendConfig(
       rpcUrl,
       env.HOST || "0.0.0.0",
       integerSetting("PORT", env.PORT, 3001, 1, 65535),
-      integerSetting("POLL_MS", env.POLL_MS, 30_000, 0, 86_400_000),
+      pollMs,
       integerSetting("MAX_BODY_BYTES", env.MAX_BODY_BYTES, 16_384, 1024, 1_048_576),
       publicKeySetting("STAGEGATE_PROGRAM_ID", env.STAGEGATE_PROGRAM_ID ?? DEFAULT_STAGEGATE_PROGRAM_ID),
       publicKeySetting("META_DAO_PROGRAM_ID", env.META_DAO_PROGRAM_ID ?? DEFAULT_META_DAO_PROGRAM_ID),

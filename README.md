@@ -5,7 +5,7 @@ Bestcrow v2 is a Solana milestone crowdfunding prototype. The Anchor program hol
 ## What is in this branch
 
 - `rust/`: Anchor program, five to ten ordered milestones, USDC escrow, immutable DAO/proposal bindings, deadlines and refunds. The kickoff is at most 30% of the goal; no milestone can exceed 50%; all tranches sum to the goal.
-- `backend/`: class-based TypeScript API, campaign decoder, MetaDAO proposal/trade instruction preparation, and a read-only keeper by default. Wallets sign the returned instructions.
+- `backend/`: class-based TypeScript API, campaign decoder, MetaDAO proposal/trade instruction preparation, and an optional keeper. Automatic polling is off by default. Wallets sign the returned instructions.
 - `frontend/`: barebone Next.js app with a campaign-address lookup and Pass/Fail buy, sell and redeem screen at `/campaign/<address>/market`.
 - `compose.yaml`: API, frontend, optional Anchor build container and empty local validator.
 

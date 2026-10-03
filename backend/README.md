@@ -1,6 +1,6 @@
 # Bestcrow v2 TypeScript backend
 
-The API reads Anchor accounts through the generated `@bestcrow/client` decoder and prepares unsigned instructions. The keeper polls for eligible actions every 30 seconds. It can dispatch those actions when explicitly configured with a separate keeper keypair; by default it only reports them.
+The API reads Anchor accounts through the generated `@bestcrow/client` decoder and prepares unsigned instructions. Keeper polling is off by default so a local prototype does not continuously query public devnet RPC. Set `POLL_MS=30000` to scan for eligible actions every 30 seconds. It can dispatch those actions when explicitly configured with a separate keeper keypair.
 
 ## Run
 
@@ -15,7 +15,7 @@ npm start
 
 Docker: from the repository root, copy `backend/.env.example` to `.env` if overrides
 are needed, then run `docker compose --profile backend up --build -d backend`.
-Health: `GET http://127.0.0.1:3001/health` by default. Set `POLL_MS=0` to disable polling.
+Health: `GET http://127.0.0.1:3001/health` by default. Set `POLL_MS` to a positive interval to enable polling.
 
 ## Configuration
 
@@ -24,7 +24,7 @@ Health: `GET http://127.0.0.1:3001/health` by default. Set `POLL_MS=0` to disabl
 | `RPC_URL` | Devnet RPC | Solana JSON RPC endpoint |
 | `HOST` / `PORT` | `0.0.0.0` / `3001` | HTTP bind address and port |
 | `MAX_BODY_BYTES` | `16384` | Maximum JSON request size |
-| `POLL_MS` | `30000` | Keeper scan interval; `0` disables it |
+| `POLL_MS` | `0` | Keeper scan interval in milliseconds; `0` disables it |
 | `STAGEGATE_PROGRAM_ID` | `EousWVK...` | StageGate program in `rust/programs/bestcrow/src/lib.rs` |
 | `META_DAO_PROGRAM_ID` | `FUTARELB...` | MetaDAO futarchy program |
 | `CONDITIONAL_VAULT_PROGRAM_ID` | `VLTX1ish...` | MetaDAO conditional vault program |
@@ -65,7 +65,7 @@ The pinned MetaDAO SDK depends on older Anchor/Solana packages. `npm audit --omi
 
 ## Keeper dispatcher
 
-For a self-hosted operator, set `KEEPER_AUTOSEND=1` and `KEEPER_KEYPAIR_PATH` to an existing Solana keypair file **outside this repository**. The keeper then signs only currently eligible permissionless finalization, timeout and resolution instructions, rechecking campaign state immediately before sending. A failed transaction is logged and retried on the next poll. Do not set these variables for a read-only API. In Docker, mount the external file read-only and set its container path with a Compose override. No keypair is generated or committed here.
+For a self-hosted operator, set a positive `POLL_MS`, `KEEPER_AUTOSEND=1` and `KEEPER_KEYPAIR_PATH` to an existing Solana keypair file **outside this repository**. The keeper then signs only currently eligible permissionless finalization, timeout and resolution instructions, rechecking campaign state immediately before sending. A failed transaction is logged and retried on the next poll. Do not set these variables for a read-only API. In Docker, mount the external file read-only and set its container path with a Compose override. No keypair is generated or committed here.
 
 Keeper actions are: finalize funding below goal, expire a pending/reviewing milestone, finalize a mature MetaDAO proposal, and resolve a finalized MetaDAO result. MetaDAO's market duration must be at least 24 hours. No bot is required for a user to invoke any of these transitions.
 

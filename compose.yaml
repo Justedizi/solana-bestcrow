@@ -34,7 +34,7 @@ services:
       META_DAO_PROGRAM_ID: ${META_DAO_PROGRAM_ID:-FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq}
       CONDITIONAL_VAULT_PROGRAM_ID: ${CONDITIONAL_VAULT_PROGRAM_ID:-VLTX1ishMBbcX3rdBWGssxawAo1Q2X2qxYFYqiGodVg}
       USDC_MINTS: ${USDC_MINTS:-4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU,EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v}
-      POLL_MS: ${POLL_MS:-30000}
+      POLL_MS: ${POLL_MS:-0}
       KEEPER_AUTOSEND: ${KEEPER_AUTOSEND:-0}
       KEEPER_KEYPAIR_PATH: ${KEEPER_KEYPAIR_PATH:-}
     ports:
@@ -47,6 +47,9 @@ services:
     profiles: [backend]
 
   frontend:
+    depends_on:
+      backend:
+        condition: service_healthy
     build:
       context: ./frontend
       dockerfile: Dockerfile

@@ -27,13 +27,16 @@ test("configuration reads validated environment overrides", () => {
 
 test("default program ID matches the Rust Anchor declaration", () => {
   const declaredId = "EousWVK2cePYb9zvv1oWSca4VNdRQqYef8CsxQ6BL57R";
-  assert.equal(BackendConfig.fromEnv({}).stagegateProgramId, declaredId);
+  const config = BackendConfig.fromEnv({});
+  assert.equal(config.stagegateProgramId, declaredId);
+  assert.equal(config.pollMs, 0);
   assert.equal(BESTCROW_PROGRAM_ADDRESS, declaredId);
 });
 
 test("configuration rejects malformed operational values", () => {
   assert.throws(() => BackendConfig.fromEnv({ PORT: "3001xyz" }), /PORT/);
   assert.throws(() => BackendConfig.fromEnv({ KEEPER_AUTOSEND: "yes" }), /KEEPER_AUTOSEND/);
+  assert.throws(() => BackendConfig.fromEnv({ KEEPER_AUTOSEND: "1", KEEPER_KEYPAIR_PATH: "/tmp/keeper.json" }), /POLL_MS/);
   assert.throws(() => BackendConfig.fromEnv({ USDC_MINTS: `${campaignAddress},${campaignAddress}` }), /USDC_MINTS/);
 });
 
