@@ -254,3 +254,32 @@ Every rubric column maps to a demonstrable property of the program — not a che
 | Originality | 10% | Proportional atomic refund-all is the demo beat nobody else will have |
 
 If you want to win, the checklist runs itself — build the 5-instruction simple version, ship it live, and make refund_all the demo's climactic beat. That's the whole game.
+
+---
+
+## 15. How refund conditions are verified (the trust model)
+
+The refund path has exactly three conditions. All three are checked by the program, from data that lives in the ledger itself — no oracle, no human, no operator:
+
+1. **Time** — `now >= deadline`. Read from the Clock sysvar (validator consensus). Nobody can fake it; users cannot set their own clock.
+2. **Goal not met** — `raised < goal`. `raised` is a counter the program itself increments inside `pledge`, in the same atomic transaction that moves real lamports into the vault. Test invariant: `vault_lamports == raised + rent`. A lying counter would require lying lamports.
+3. **Entitlement** — who gets how much back. Not taken from the caller's word: for every donor the program re-derives the DonorLedger PDA `[b"donor", campaign, donor]` and refuses any account whose seeds don't match. The refund destination and amount are read from *inside* the validated ledger record, never from instruction arguments. A forged or substituted entry fails seed derivation and the whole transaction reverts (fail-closed).
+
+Plus the double-refund guard: `claimed` flips to true inside the same atomic transaction; a second attempt hits `AlreadyClaimed`. And on the way in: `pledge` requires `status == Active` and `now < deadline`, so there is no post-deadline sniping.
+
+### The one real engineering gap: how does refund_all know the donor list?
+
+PDA accounts cannot be enumerated on-chain. Two honest fixes; pick one:
+
+- **A. Donor registry (recommended for the demo):** the campaign account carries `[Pubkey; 16] + count`, filled by `pledge`. Fixed SPACE, compile-time sized (~512 B for the keys). `refund_all` takes the list from the campaign itself → genuinely one-click. The cap is documented honestly: "max 16 donors per campaign" (16 was chosen because a legacy tx fits ~32 accounts — 16 donors + campaign + vault + program + caller stays comfortably inside).
+- **B. Off-chain discovery:** an indexer (`getProgramAccounts` filtered by seeds prefix) builds the list off-chain; `refund_all` accepts up to ~6 donor accounts per tx and validates each exactly as in (3) above. Unlimited donors, but the demo shows 2–3 transactions instead of one.
+
+Either way the *verification* is identical — the list is only a hint; the program is the judge.
+
+### Weak point we are cutting: extend_deadline
+
+A creator who can extend the deadline forever can trap donations in limbo — donors cannot be refunded while status is Active. That is a unilateral change of the refund condition: exactly the intermediary behavior this program exists to remove. MVP: **no extension**. Roadmap: extension rights fixed at creation (max 1 extension, max +7 days), or a donor-approval threshold.
+
+### What remains unverifiable (unchanged)
+
+Whether the charity does the work after a successful campaign, and who the charity is. The refund side is fully trustless; the delivery side stays the honest boundary already stated in §5.
