@@ -51,10 +51,15 @@ jobs:
       - name: Format check
         run: cargo fmt --all --check
 
-      # Produces target/deploy/charity_vault.so, which the LiteSVM tests load.
+      # Produce target/deploy/charity_vault.so, which the LiteSVM tests load.
+      # --sbf-out-dir places the artifact in target/deploy (what `anchor build` and
+      # the test harness expect); cargo-build-sbf would otherwise emit it to
+      # target/sbpf-solana-solana/release.
       # --arch v0 is required by the installed platform-tools target (see rust/README.md).
       - name: Build SBF program
-        run: cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0
+        run: |
+          set -euo pipefail
+          cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0 --sbf-out-dir target/deploy
 
       - name: Run LiteSVM integration tests
         run: cargo test --manifest-path programs/charity-vault/Cargo.toml

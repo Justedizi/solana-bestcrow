@@ -61,7 +61,9 @@ jobs:
 
       - name: Build SBF program
         working-directory: rust
-        run: cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0
+        run: |
+          set -euo pipefail
+          cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0 --sbf-out-dir target/deploy
 
       - name: Deploy to ${{ github.event.inputs.cluster || 'devnet' }}
         working-directory: rust
