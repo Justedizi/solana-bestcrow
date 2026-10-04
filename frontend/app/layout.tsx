@@ -31,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
         <main className="mx-auto min-h-[calc(100vh-7rem)] max-w-5xl px-6 py-12">{children}</main>
         <footer className="border-t border-slate-200 px-6 py-4 text-sm text-slate-600">
-          <div className="mx-auto flex max-w-5xl justify-between"><span>BESTCROW</span><span>1% fee only when a campaign succeeds · Devnet</span></div>
+          <div className="mx-auto flex max-w-5xl flex-wrap justify-between gap-x-4 gap-y-1"><span>BESTCROW</span><span>1% fee only when a campaign succeeds · Devnet</span></div>
         </footer>
         </Providers>
       </body>

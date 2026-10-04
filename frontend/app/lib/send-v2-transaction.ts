@@ -48,7 +48,10 @@ export async function sendV2Transaction(
 
   try {
     const { context, value: latestBlockhash } = await withRpcRetry(
-      () => client.rpc.getLatestBlockhash({ commitment: 'finalized' }).send(),
+      // The UI deliberately advances after confirmed status.  Using finalized
+      // here can lag behind a just-confirmed draft/tranche and make the next
+      // resumable step simulate against stale account state.
+      () => client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send(),
     );
     const message = pipe(
       createTransactionMessage({ version }),
@@ -61,7 +64,7 @@ export async function sendV2Transaction(
     const simulation = await withRpcRetry(() => client.rpc.simulateTransaction(
       getBase64EncodedWireTransaction(unsigned),
       {
-        commitment: 'finalized',
+        commitment: 'confirmed',
         encoding: 'base64',
         replaceRecentBlockhash: false,
         sigVerify: false,
