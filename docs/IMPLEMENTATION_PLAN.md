@@ -89,14 +89,16 @@ funkcje już działające. Punktem odniesienia dla inwentaryzacji jest commit
     Przed deklaracją niezmienności ujawnić i sprawdzić uprawnienia do
     aktualizacji programu.
 
-### Otwarte decyzje ekonomiczne (blokada przed kodem rozliczeń)
+### Status decyzji P0
 
-| Temat | Ustalono | Do zatwierdzenia i przetestowania |
+Szczegółowe decyzje i format V2 są zapisane w [docs/PROTOCOL_V2.md](PROTOCOL_V2.md).
+
+| Punkt | Status | Wynik |
 | --- | --- | --- |
-| Prowizja | 1% od faktycznej sumy, tylko po sukcesie | Stały adres odbiorcy i zaokrąglenie do lamportów; powyższa specyfikacja proponuje `floor` |
-| Kaucja | 0,1 SOL od każdej kampanii etapowej | Kiedy oddać po porażce celu i po pełnym sukcesie; czy i kiedy przepada przy dobrowolnym przerwaniu, braku dowodu i drugiej porażce; okres oczekiwania po zakończeniu |
-| Terminy | 7-183 dni zbiórki, 7 dni głosowania, 30 dni poprawy, 7 dni drugiego głosowania | Czy kampania ma dodatkowy termin na pierwszy dowód; powyższy plan wymaga go i konsekwencji jego przekroczenia |
-| Nagrody | Dane prywatne poza łańcuchem | Reguła zwrotu/rezerwacji nagród przy zakończeniu, zanim obieca się dostawy fizyczne |
+| P0.1 | ✅ Zakończone projektowo | 1% `floor`, 0,1 SOL, 183 dni, 30 dni na pierwszy dowód, reguły nieaktywnych głosujących, rounding i kaucja są zamknięte. |
+| P0.1-D | ⚠ Problem wdrożeniowy | Repozytorium nie zawiera konkretnego publicznego klucza treasury. Trzeba go podać przed inicjalizacją `ProtocolConfigV2` i deploymentem. |
+| P0.2 | ✅ Zakończone projektowo | Nowe konta/PDA/IDL V2, wersjonowanie i migracja V1 są opisane w `PROTOCOL_V2.md`. |
+| P0.3 | ✅ Zakończone projektowo | RFC 8785 JCS, manifest warunków, manifest dowodu, Arweave URI i hash są opisane w `PROTOCOL_V2.md`. |
 
 ## Stan kodu w chwili napisania
 
@@ -126,15 +128,14 @@ Każda faza kończy się testami i przeglądem zmian, zanim kolejna zacznie
 polegać na jej kontrakcie. Nie implementować zależności backendu lub UI
 od starego układu kont jako docelowego API.
 
-### 0. Domknięcie protokołu i migracja
+### 0. Domknięcie protokołu i migracja — wykonane
 
-- [ ] **P0.1** Zatwierdzić otwarte decyzje ekonomiczne z tabeli, adres skarbca
-  prowizji, znaczenie pół roku i termin pierwszego dowodu; opisać zasady
-  zaokrąglania, nieaktywnych głosujących i los niewydanej nadwyżki.
-- [ ] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji dla
-  istniejących kampanii. Nie interpretować starych kont według nowego układu.
-- [ ] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, stabilny publiczny
-  magazyn oraz weryfikację hasha i dostępności bez naszej strony.
+- [x] **P0.1** Zatwierdzić decyzje ekonomiczne. Prowizja, kaucja, terminy,
+  rounding, brak aktywności i nadwyżka są opisane; konkretny adres treasury
+  pozostaje problemem wdrożeniowym P0.1-D.
+- [x] **P0.2** Zaprojektować wersję kont/PDA/IDL V2 i ścieżkę migracji V1.
+- [x] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, publiczny storage
+  oraz weryfikację hasha. Szczegóły: [PROTOCOL_V2.md](PROTOCOL_V2.md).
 
 ### 1. Program Solana: finansowanie i rachunkowość
 
