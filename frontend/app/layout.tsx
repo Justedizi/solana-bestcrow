@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <small>/ CHARITY VAULT</small>
               </Link>
               <nav>
-                <Link href="/">Discover</Link>
+                <Link href="/discover">Discover</Link>
                 <Link href="/how-it-works">How it works</Link>
               </nav>
               <div className="nav-actions">
