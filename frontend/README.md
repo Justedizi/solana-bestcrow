@@ -1,9 +1,11 @@
 # Bestcrow frontend
 
-The frontend now contains the responsive Bestcrow discovery, campaign detail,
-creation, explanation and “My support” views. Wallet transaction builders and
-the final V2 API remain gated on the verified V2 deployment; the UI labels
-those states instead of presenting legacy actions as final MVP behavior.
+The frontend contains the responsive Bestcrow discovery, campaign detail,
+creation, explanation, creator profile and “My support” views. It reads V2
+accounts directly, verifies permanent manifests against on-chain commitments,
+and builds V2 transactions with simulation and a single wallet approval per
+step. The UI stays disabled until the Devnet deployment exposes
+`ProtocolConfigV2`.
 Follow the [ordered implementation plan](../docs/IMPLEMENTATION_PLAN.md)
 for the financial rules and backend dependencies.
 
@@ -12,16 +14,16 @@ inspiration. The [frontend sketch](STOCKGATE_FRONTEND_SKETCH.md#visual-reference
 explains how to adapt that reference to Bestcrow without copying its branding
 or weakening the clarity of campaign and transaction states.
 
-Reusable Solana helpers remain in `app/lib/` for the next implementation pass.
-They retry transient Solana HTTP 429 responses and show a dedicated-provider
-hint after the retry budget is exhausted.
+Reusable Solana helpers live in `app/lib/`. They use @solana/kit, handle v1
+wallet support with a v0 fallback, retry transient Solana HTTP 429 responses,
+and show a dedicated-provider hint after the retry budget is exhausted.
 
 ```bash
 npm install
 npm run dev
 ```
 
-## MVP screens and interaction requirements (planned)
+## MVP screens and interaction requirements
 
 1. A wallet-first session creates or resumes a backer account after a signed
    challenge, with no email required. A creator can add organization details

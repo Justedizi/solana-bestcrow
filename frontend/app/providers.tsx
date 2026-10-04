@@ -22,7 +22,7 @@ const chain = (process.env.NEXT_PUBLIC_SOLANA_CHAIN ?? 'solana:devnet') as `${st
 export const client = createClient()
   .use(walletSigner({ chain }))
   .use(solanaRpcSubscriptionsConnection(wsUrl))
-  .use(solanaRpc({ rpcUrl, transactionConfig: { version: 0 } }));
+  .use(solanaRpc({ rpcUrl, transactionConfig: { version: 1 } }));
 
 export type AppClient = typeof client;
 

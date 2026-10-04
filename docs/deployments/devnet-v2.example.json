@@ -1,0 +1,25 @@
+{
+  "cluster": "devnet",
+  "rpcUrl": "https://api.devnet.solana.com",
+  "programId": "PROGRAM_ID",
+  "deployer": "UPGRADE_AUTHORITY",
+  "treasury": "TREASURY_PUBLIC_KEY",
+  "configPda": "PROTOCOL_CONFIG_V2_PDA",
+  "programSha256": "SHA256_OF_DEPLOYED_SO",
+  "idlSha256": "SHA256_OF_GENERATED_IDL",
+  "deploymentSignature": "DEPLOYMENT_SIGNATURE",
+  "deploymentExplorer": "https://explorer.solana.com/tx/DEPLOYMENT_SIGNATURE?cluster=devnet",
+  "configInitializationSignature": "CONFIG_INITIALIZATION_SIGNATURE",
+  "configExplorer": "https://explorer.solana.com/tx/CONFIG_INITIALIZATION_SIGNATURE?cluster=devnet",
+  "smokeCampaignPda": "SMOKE_CAMPAIGN_PDA",
+  "smokeTestSignatures": [
+    "SMOKE_TEST_SIGNATURE"
+  ],
+  "smokeExplorers": [
+    "https://explorer.solana.com/tx/SMOKE_TEST_SIGNATURE?cluster=devnet"
+  ],
+  "programShowBeforeFinalization": {},
+  "finalizationSignature": null,
+  "finalizationExplorer": null,
+  "programShowAfterFinalization": null
+}

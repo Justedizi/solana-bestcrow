@@ -14,7 +14,7 @@ charity_vault = "74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG"
 bestcrow = "3jGgPRa4gH25wfL49E3TAtpix5ePUZKWrQLT83eNZBVr"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

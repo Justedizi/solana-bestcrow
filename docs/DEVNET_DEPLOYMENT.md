@@ -1,97 +1,167 @@
 # Wdrożenie Bestcrow V2 na Devnet
 
-Ten proces wykonuje osoba posiadająca portfel deployera z SOL na Devnet. Nie
-używaj portfela z prawdziwymi środkami.
+Ta checklista rozdziela kroki bezpieczne od kroków wysyłających transakcje.
+Skrypty domyślnie wykonują tylko build, odczyty i symulację. Transakcja jest
+wysyłana dopiero po podaniu jawnej flagi `--execute...`.
 
-## Co oznaczają adresy
+> Nie używaj portfela z prawdziwymi środkami. Nie commituj keypair ani seed
+> phrase. Ostatni krok (`--final`) jest nieodwracalny.
 
-- **Program ID** identyfikuje kod programu na Solanie. W `rust/Anchor.toml`
-  obecny identyfikator to `74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG`.
-  Sam wpis w pliku nie oznacza jeszcze wdrożenia.
-- **Upgrade authority** to publiczny adres portfela, który może aktualizować
-  program. Przed blokadą edycji ten portfel wykonuje deployment i inicjalizację.
-- **IDL** to wygenerowany opis instrukcji i kont programu. Powstaje po
-  poprawnym buildzie, zwykle jako `rust/target/idl/charity_vault.json`.
-- **ProtocolConfigV2** to konto PDA programu z adresem treasury i prowizją.
-  Nie tworzy się go ręcznie w portfelu; tworzy je instrukcja
-  `initialize_protocol_config_v2`.
+## Adresy i pliki
 
-## Przygotowanie jednorazowe
+- **Program ID** identyfikuje kod. Wpis w `Anchor.toml` nie dowodzi wdrożenia.
+- **Program keypair** wyznacza Program ID przy pierwszym wdrożeniu. Plik
+  `rust/target/deploy/charity_vault-keypair.json` musi odpowiadać wartościom w
+  `Anchor.toml`, `declare_id!` oraz IDL.
+- **Upgrade authority** wdraża aktualizacje i jednorazowo inicjalizuje config.
+- **IDL** powstaje z wdrażanego buildu jako
+  `rust/target/idl/charity_vault.json`.
+- **ProtocolConfigV2** to PDA z seedem `config-v2`, treasury i `fee_bps = 100`.
+- **Evidence JSON** zapisuje publiczne adresy, hashe i podpisy transakcji w
+  `docs/deployments/devnet-v2.json`.
 
-Zainstaluj Rust, Solana CLI, Node.js, Anchor CLI zgodny z `anchor-lang` w
-`rust/programs/charity-vault/Cargo.toml`, a następnie ustaw portfel:
+## 0. Wymagania i portfel
 
-```powershell
+Repo przypina `anchor-lang = 1.1.2`; użyj Anchor CLI 1.1.2. Sprawdzone wersje
+to Solana CLI 3.1.10 oraz Node.js 20.18 lub nowszy.
+
+```bash
+rustc --version
+solana --version
+anchor --version
+node --version
+cd rust && npm ci && cd ..
 solana config set --url https://api.devnet.solana.com
-solana-keygen new --outfile $env:USERPROFILE\.config\solana\id.json
+solana-keygen new --outfile ~/.config/solana/id.json
 solana airdrop 2
 solana address
 ```
 
-W `rust/Anchor.toml` ustaw `provider.cluster = "devnet"`, `provider.wallet`
-na ten sam plik oraz `programs.devnet.charity_vault` na uzgodniony Program ID.
-Program ID musi odpowiadać kluczowi `rust/target/deploy/charity_vault-keypair.json`.
+Jeśli plik portfela już istnieje, nie nadpisuj go bez świadomej decyzji.
 
-## Build i IDL
+## 1. Program keypair i Program ID
 
-```powershell
-Set-Location rust
-anchor build
+Zadeklarowany adres
+`74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG` jest użyteczny tylko z
+odpowiadającym mu program keypair. Jeśli świadomie wybierasz nowy adres:
+
+```bash
+mkdir -p rust/target/deploy
+solana-keygen new --outfile rust/target/deploy/charity_vault-keypair.json
+cd rust
+anchor keys sync
 anchor keys list
-anchor idl build
+git diff -- Anchor.toml programs/charity-vault/src/lib.rs
+cd ..
 ```
 
-Jeżeli `anchor keys list` pokaże inny ID, zaktualizuj `Anchor.toml` i
-`rust/programs/charity-vault/src/lib.rs` (`declare_id!`), po czym wykonaj build
-ponownie. Nie twórz IDL ręcznie: IDL musi pochodzić z tego samego buildu, który
-wdrażasz.
+Zatrzymaj się, jeśli zmienił się adres, którego nie planowałeś. Program keypair
+jest ignorowany przez Git i wymaga bezpiecznej kopii poza repozytorium.
 
-## Deployment i weryfikacja
+## 2. Build i preflight — bez transakcji
 
-```powershell
-anchor deploy --provider.cluster devnet
-solana program show <PROGRAM_ID> --url devnet
+```bash
+scripts/deploy-devnet.sh --wallet ~/.config/solana/id.json
 ```
 
-`solana program show` musi pokazać program na Devnecie i upgrade authority.
-Zapisz podpis transakcji deploymentu oraz adres programu.
+Skrypt potwierdza genesis hash Devnetu i wersję Anchor, buduje program, generuje
+IDL, porównuje wszystkie Program ID, sprawdza saldo oraz pokazuje hashe programu
+i IDL. Bez `--execute-deploy` niczego nie wdraża.
 
-## Treasury i ProtocolConfigV2
+## 3. Deployment
 
-Wybierz osobny publiczny adres treasury, np. adres portfela organizacji:
+Po sprawdzeniu podsumowania:
 
-```powershell
-$env:TREASURY = "PUBLIC_KEY_TREASURY"
+```bash
+scripts/deploy-devnet.sh \
+  --wallet ~/.config/solana/id.json \
+  --execute-deploy
 ```
 
-Po deploymentcie wyślij jednorazową instrukcję
-`initialize_protocol_config_v2(treasury)`. W Anchor można to zrobić skryptem
-TypeScript używającym wygenerowanego IDL; instrukcja tworzy PDA z seeda
-`config-v2`, zapisuje `fee_bps = 100` i adres treasury. Zapisz podpis tej
-transakcji oraz wyliczony adres PDA.
+Skrypt wykonuje `anchor deploy`, potem `solana program show`, zapisuje log i
+rozpoczyna `docs/deployments/devnet-v2.json`. Jeśli podpisu nie uda się odczytać
+automatycznie, skopiuj go z `docs/deployments/devnet-v2-anchor-deploy.log`.
 
-Przed inicjalizacją sprawdź, że treasury jest poprawnym publicznym kluczem i że
-nie jest adresem deployera przypadkowo wpisanym przez pomyłkę. Konfiguracja jest
-jednorazowa.
+## 4. Treasury i ProtocolConfigV2
 
-## Zablokowanie aktualizacji
+Treasury musi być poprawnym publicznym kluczem innym niż deployer. Najpierw
+wykonaj wyłącznie odczyty i symulację:
 
-Najpierw wykonaj build, deployment, inicjalizację konfiguracji i smoke test.
-Dopiero gdy wszystkie transakcje są potwierdzone:
-
-```powershell
-solana program set-upgrade-authority <PROGRAM_ID> --final --url devnet
-solana program show <PROGRAM_ID> --url devnet
+```bash
+export TREASURY="PUBLIC_KEY_TREASURY"
+cd rust
+npm run devnet:init-config -- \
+  --treasury "$TREASURY" \
+  --evidence ../docs/deployments/devnet-v2.json
 ```
 
-Po tej operacji program staje się nieaktualizowalny. Nie da się naprawić błędu
-bez wdrożenia nowego programu pod nowym adresem i migracji klientów.
+Po sprawdzeniu podsumowania wyślij jednorazową transakcję:
 
-## Dowód działania
+```bash
+npm run devnet:init-config -- \
+  --treasury "$TREASURY" \
+  --evidence ../docs/deployments/devnet-v2.json \
+  --execute \
+  --confirm-treasury "$TREASURY"
+cd ..
+```
 
-Zapisz w dokumentacji: Program ID, treasury, Config PDA, deployment signature,
-config initialization signature, smoke test signatures oraz wynik
-`solana program show`. Link ma postać:
+Skrypt sprawdza upgrade authority, IDL z buildu, PDA `config-v2`, symuluje
+instrukcję i potwierdza zapisane `version = 2`, treasury oraz `fee_bps = 100`.
 
-`https://explorer.solana.com/tx/<SIGNATURE>?cluster=devnet`
+## 5. Smoke test V2
 
+Najpierw symulacja:
+
+```bash
+cd rust
+npm run devnet:smoke -- \
+  --evidence ../docs/deployments/devnet-v2.json
+```
+
+Test tworzy i uszczelnia kampanię z dwoma tranche po 50% w jednej transakcji.
+Nie wpłaca pledge, ale deployer płaci rent i opłatę sieciową. Po weryfikacji:
+
+```bash
+PROGRAM_ID="$(node -p "require('./target/idl/charity_vault.json').address")"
+npm run devnet:smoke -- \
+  --evidence ../docs/deployments/devnet-v2.json \
+  --execute \
+  --confirm-program-id "$PROGRAM_ID"
+cd ..
+```
+
+## 6. Obowiązkowa kontrola dowodów
+
+W `docs/deployments/devnet-v2.json` muszą być: Program ID, deployer, treasury,
+Config PDA, hashe `.so` i IDL, podpis deploymentu, podpis inicjalizacji configu,
+co najmniej jeden podpis smoke testu i wynik `solana program show`.
+
+Link do podpisu ma postać:
+`https://explorer.solana.com/tx/<SIGNATURE>?cluster=devnet`.
+Szablon pól: `docs/deployments/devnet-v2.example.json`.
+
+## 7. Nieodwracalna blokada aktualizacji
+
+Najpierw uruchom tylko weryfikację:
+
+```bash
+scripts/finalize-devnet-v2.sh \
+  --wallet ~/.config/solana/id.json \
+  --evidence docs/deployments/devnet-v2.json
+```
+
+Skrypt odmówi działania, gdy brakuje podpisów, Config PDA ma złego ownera albo
+portfel nie jest aktualnym upgrade authority. Po ponownym sprawdzeniu:
+
+```bash
+PROGRAM_ID="$(node -p "require('./docs/deployments/devnet-v2.json').programId")"
+scripts/finalize-devnet-v2.sh \
+  --wallet ~/.config/solana/id.json \
+  --evidence docs/deployments/devnet-v2.json \
+  --execute \
+  --confirm-final "$PROGRAM_ID"
+```
+
+Po tym kroku program jest nieaktualizowalny. Naprawa błędu wymaga nowego
+Program ID i migracji klientów.

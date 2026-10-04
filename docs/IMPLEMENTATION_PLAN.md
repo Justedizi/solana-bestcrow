@@ -258,19 +258,21 @@ tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego tool
 
 ### 4. Frontend po stabilizacji API
 
-Status wykonania P4 (2026-10-04): wdrożono warstwę wizualną inspirowaną
-Colosseum, strony start/discover/how-it-works, widok kampanii, walidację
-formularza 2–5 etapów oraz widok „My support”. Integracja formularza z pełnym
-V2 API i transakcjami etapowymi pozostaje zablokowana do czasu zweryfikowanego
-IDL/deploymentu; `npm run typecheck` nie uruchamia się bez lokalnego `tsc`.
+Status wykonania P4 (2026-10-04): frontend przełączono na klienta V2 opartego
+na PDA i layoutach kont programu. Działa wallet-first login przez podpisany
+challenge, profil twórcy, discovery z filtrowaniem, szczegóły kampanii,
+bezpośredni odczyt ledgerów „My support”, kreator draftu 2–5 transz z
+wznowieniem oraz review/symulacja każdej transakcji. UI pozostaje zablokowane
+dla realnego użycia, dopóki `ProtocolConfigV2` i program nie są potwierdzone na
+Devnecie; ta blokada wynika ze stanu sieci, nie z braku builderów.
 
 | Zadanie | Stan | Problem |
 |---|---|---|
 | P4.0 | Wykonane | Kierunek wizualny i responsywna hierarchia gotowe |
-| P4.1 | Częściowo | Główne widoki gotowe; pełne dane z API i wallet-first session czekają na stabilny backend |
-| P4.2 | Częściowo | Walidacja 2–5 etapów, 7–183 dni, sumy i limitów gotowa; wysyłka nadal korzysta z legacy create instruction |
-| P4.3 | Częściowo | Widok pokazuje etapy, fee, hash i stany; odczyt on-chain wymaga V2 indexera |
-| P4.4 | Problem | Brak zweryfikowanych V2 instruction builders/deploymentu |
+| P4.1 | Wykonane | Wallet-first session, profil twórcy, discovery, detail i direct on-chain „My support” działają bez zaufania do indeksu |
+| P4.2 | Wykonane | Walidacja pełnych warunków, canonical JSON, 1% fee, rent, osobne kroki draft/tranche/seal i wznowienie po częściowym błędzie |
+| P4.3 | Wykonane | Weryfikacja hashy manifestu, statusy on-chain, oba zegary, próg >50%, refund pool, split i stany formularzy |
+| P4.4 | Wykonane | Builders V2 dla pledge/cancel/finalize/refund/evidence/vote/release/withdraw/terminate oraz symulacja przed podpisem |
 | P4.5 | Wykonane | Teksty mówią o startupach, 1% fee i braku kaucji i braku moderacyjnej bramki |
 
 - [x] **P4.0** Przygotować kierunek wizualny inspirowany
@@ -278,18 +280,18 @@ IDL/deploymentu; `npm run typecheck` nie uruchamia się bez lokalnego `tsc`.
   rytm i prezentację projektów dostosować do Bestcrow. Nie kopiować
   identyfikacji, zasobów ani układów dosłownie; czytelność finansów i
   dostępność kontrolek pozostają nadrzędne.
-- [ ] **P4.1** Zastąpić szkielety pełnym, responsywnym UI dla startupów:
+- [x] **P4.1** Zastąpić szkielety pełnym, responsywnym UI dla startupów:
   połączenie portfela i automatyczne logowanie backera, profil twórcy, lista
   zbiórek, szczegóły, „moje wpłaty”, głosowanie, wypłaty i zwroty.
-- [ ] **P4.2** Kreator kampanii waliduje wszystkie pola przed pierwszą
+- [x] **P4.2** Kreator kampanii waliduje wszystkie pola przed pierwszą
   transakcją, pokazuje procenty, kwotę netto, prowizję i rent oraz
   odróżnia szkic od nieedytowalnej kampanii po starcie. Obsługuje częściowe
   błędy wielotransakcyjnego szkicu i wznowienie bez ukrywania ryzyka.
-- [ ] **P4.3** Strona kampanii pokazuje kanoniczny, zweryfikowany opis i
+- [x] **P4.3** Strona kampanii pokazuje kanoniczny, zweryfikowany opis i
   dostępny dowód, próg >50% wszystkich wpłat, oba zegary, etapy w
   kolejności, prowizję i pulę refundacyjną. Formularze są dostępne
   z klawiatury, mają błędy przy polach i pełne stany oczekiwania.
-- [ ] **P4.4** Poprawić budowanie transakcji podziału i wypłaty,
+- [x] **P4.4** Poprawić budowanie transakcji podziału i wypłaty,
   permissionless `finalize`/`release`/`refund_for` oraz linki do potwierdzonych
   transakcji. Nie pokazywać przycisku, którego obecny kontrakt nie obsłuży.
 - [x] **P4.5** Przepisać teksty interfejsu: startupy/prototypy, 1% jawnej prowizji
