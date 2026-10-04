@@ -1,0 +1,43 @@
+> **ARCHIVED / SUPERSEDED — do not use as spec.** Scratch notes from the charity phase; kept for history only.
+> Canonical protocol: [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md). See [../DECISIONS.md](../DECISIONS.md) (D-001).
+
+- Voting 
+- Min. 5 milestones
+- 50% max for each milestone
+- Etap backingu i przy voting <50% faza do wykazania się, jesli nie to disband
+
+
+
+
+0. Extra info
+    Voting should have weighted system e.g. person with more backed money has higher weight
+
+1. Before pledging the goal we work the same way as kickstarter
+
+2. After pledging the goal the project goes through X milestones where
+gradually each portion of funding is deposited to the funder
+
+    2.1. After each milestone backers cast a vote deciding whether or not 
+        the milestone was successfully pledged if it receives 70%+ it goes
+        through, if not successful it goes through 2nd voting system where 
+        funder has a week to do necessary changes and then the 2nd voting goes.
+
+    2.2. Funders have option to request via poll a way to get exceeding funds
+        from the overflowing funds so like 120% they can request to get portion/all 20%
+        and then it's for the backers to vote whether or not they respect it
+
+    2.3. Funders have option to poll for extra funding if they're in need and again
+    its up to the backers to decide
+
+3. 
+
+
+
+Edges
+- Anonimowość od strony customera
+- Milestone funding
+- Głosowania i "drugie" szansy dla funderów dla niesatysfakcji z milestonu
+- Narzucenie przez funderów respektowania deadlinów i mocne kary / konswekwencje za nie spełnienie ich 
+- Niezmienialne warunki — creator nie może po rozpoczęciu kampanii zmienić budżetu, milestone’ów ani zasad głosowania.
+- Permissionless exit — backer może odebrać refund bez pomocy platformy, nawet gdy frontend przestanie działać.*
+- Profit sharing — jeśli produkt zarabia on-chain, backerzy mogą dostawać ustaloną część przychodów do określonego limitu.**

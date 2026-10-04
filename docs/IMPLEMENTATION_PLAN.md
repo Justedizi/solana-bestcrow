@@ -128,52 +128,58 @@ od starego układu kont jako docelowego API.
 
 ### 0. Domknięcie protokołu i migracja — wykonane
 
-- [x] **P0.1** Zatwierdzić decyzje ekonomiczne. Prowizja, brak kaucji, terminy,
-  rounding, brak aktywności i nadwyżka są opisane; konkretny adres treasury
-  pozostaje problemem wdrożeniowym P0.1-D.
-- [x] **P0.2** Zaprojektować wersję kont/PDA/IDL V2 i ścieżkę migracji V1.
-- [x] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, publiczny storage
-  oraz weryfikację hasha. Szczegóły: [PROTOCOL_V2.md](PROTOCOL_V2.md).
+- [x] **P0.1** Zatwierdzić decyzje ekonomiczne. Prowizja, terminy, rounding,
+  nieaktywni głosujący i nadwyżka są opisane w [DECISIONS.md](DECISIONS.md)
+  (D-003). Adres treasury pozostaje problemem wdrożeniowym (P0.1-D).
+  Alternatywnie (praca V2 na `charity-vault`): brak kaucji twórcy, szczegóły w
+  [PROTOCOL_V2.md](PROTOCOL_V2.md).
+- [x] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji.
+  → **D-004** (program `bestcrow`, nowe seeds; brak migracji kont devnet).
+  → Równolegle: V2 w `charity-vault` (`funding_v2.rs`) z migracją V1→V2.
+- [x] **P0.3** Kanoniczny JSON warunków i dowodów + publiczny storage +
+  weryfikacja hasha. → **D-005**; szczegóły V2: [PROTOCOL_V2.md](PROTOCOL_V2.md).
+
+> **Dwie ścieżki w toku.** (A) Nowy program `bestcrow` (faza 0-1,
+> `bestcrow/src/...`). (B) V2 wewnątrz `charity-vault` (`funding_v2.rs`).
+> Obie realizują ten sam docelowy protokół; decyzja o wyborze jednej ścieżki
+> przed wdrożeniem (patrz D-006).
 
 ### 1. Program Solana: finansowanie i rachunkowość
 
-Status wykonania P1: dodano osobny moduł
-[`funding_v2.rs`](../rust/programs/charity-vault/src/funding_v2.rs).
-Osiem testów bibliotecznych przeszło (`cargo test --lib --offline`).
-Checkboxy poniżej pozostają otwarte do potwierdzenia instrukcji w testach
-transakcyjnych. Build SBF nie zakończył się: instalacja `platform-tools`
-zwróciła `Odmowa dostępu (os error 5)`. Nie wykonywano deploymentu.
-
-| Zadanie | Wynik tego etapu | Problem do pełnego zamknięcia |
-| --- | --- | --- |
-| P1.1 | Dodane konta V2, szkic, 2–5 transz, dodatnie udziały <=50%, suma 100%, 7–183 dni i `seal_terms_v2`; po starcie dodawanie transz jest odrzucane | Brak testu transakcyjnego zamknięcia warunków i obsługi kont |
-| P1.2 | `pledge_v2` bez limitu celu; `cancel_pledge_v2` tylko przed końcem okna, zamknięcie ledgeru i zwrot rent | Brak testu transakcyjnego transferów i ponownej wpłaty po anulowaniu |
-| P1.3 | V2 nie ma listy donorów ani limitu 12; `claim_refund_v2` jest indywidualny i permissionless z odbiorcą związanym z ledgerem | Legacy `refund_all` zachowane dla V1; jego globalne usunięcie wymaga migracji/wycofania V1 i aktualizacji klientów. Test 13+ portfeli pozostaje do wykonania |
-| P1.4 | Finalizacja zamraża kwotę, pobiera 1% tylko przy sukcesie i rozdziela netto z resztą w ostatniej transzy; stan blokuje ponowną finalizację | Brak testu transakcyjnego treasury, powtórzeń i pełnych refundów |
-| P1.5 | Brak kaucji w MVP; brak bond vault i instrukcji bond | Brak adresu treasury do konfiguracji; P2 nie zarządza kaucją; `Completed` dotyczy wyłącznie etapów |
-| P1.6 | Permissionless `close_backer_ledger_v2` zwraca rent do backera tylko po `Completed` | P2 musi wyznaczyć zakończenie wszystkich głosowań i zobowiązań; przedtem instrukcja jest celowo niedostępna |
-
-Jednokrotna konfiguracja V2 jest autoryzowana aktualnym upgrade authority
-programu, aby pierwszy przypadkowy caller nie mógł przejąć adresu prowizji.
-Nie jest to wymóg podpisu platformy przy tworzeniu kampanii. Brak instrukcji
-zmiany konfiguracji; inicjalizować przed usunięciem upgrade authority.
-
-- [ ] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
+Status wykonania: ścieżka A (`bestcrow`) kompiluje się i buduje SBF; ścieżka B
+(`funding_v2.rs`) ma 8 testów bibliotecznych (`cargo test --lib`). Żadna nie ma
+pełnych testów transakcyjnych ani deploymentu.
   po dodaniu 2-5 etapów; nie przyjmować wpłat przed zamknięciem warunków.
   Odrzucać zmiany po starcie, sumy != 10000 bps, etap 0 lub >5000 bps oraz
   czas zbiórki poza 7-183 dniami. Ustalić startową transzę jako etap 0.
-- [ ] **P1.2** Usunąć górny limit `pledge <= goal`; dodać `cancel_pledge`
+  → `bestcrow`: `create_draft`, `add_tranche`, `seal_terms` (waliduje całość),
+  `Pledge` odrzuca stan != `Funding`.
+- [x] **P1.2** Usunąć górny limit `pledge <= goal`; dodać `cancel_pledge`
   tylko w trakcie finansowania, z poprawną wartością `raised`, ledgerem i zwrotem rent.
-- [ ] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; zachować pojedyncze
+  → `pledge` bez limitu celu; `cancel_pledge` tylko w oknie zbiórki.
+- [x] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; zachować pojedyncze
   ledgery/PDA i permissionless `refund_for` z niepodmienialnym odbiorcą.
-- [ ] **P1.4** W finalizacji zamrozić `raised`, przy porażce odblokować 100%
+  → brak rejestru i `refund_all`; `refund_for` kieruje SOL do zarejestrowanego backera.
+- [x] **P1.4** W finalizacji zamrozić `raised`, przy porażce odblokować 100%
   wpłat bez prowizji; przy sukcesie pobrać prowizję dokładnie raz, rozliczyć kwotę
   netto i procentowe transze z resztą zaokrągleń w ostatniej.
-- [x] **P1.5** Usunąć kaucję z V2. Twórca nie deponuje SOL przy tworzeniu
-  kampanii; ochrona przed botami jest odroczona do P6.
-- [ ] **P1.6** Po zakończeniu wszystkich głosowań w udanej kampanii umożliwić
+- [ ] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
+  po dodaniu 2-5 transz; nie przyjmować wpłat przed zamknięciem warunków.
+- [ ] **P1.2** Usunąć limit `pledge <= goal`; dodać `cancel_pledge` w oknie.
+- [ ] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; per-backer + permissionless `refund_for`.
+- [ ] **P1.4** Finalizacja: freeze `raised`; porażka = 100% bez prowizji; sukces = 1% raz + transze z resztą.
+- [x] **P1.5** **Decyzja MVP: brak kaucji twórcy.** (Wariant A z 0,1 SOL kaucją
+  jest udokumentowany w D-003, ale bieżący MVP go nie wymaga; ochrona
+  antyspamowa/bot odroczona do P6.)
+- [ ] **P1.6** Zamknięcie ledgerów backerów i zwrot rent po zakończeniu głosowań.
   zamknięcie ledgerów backerów i zwrot rent właściwym płatnikom, bez utraty
   danych potrzebnych do rozliczenia kampanii.
+  → `close_backer` (rent do zarejestrowanego backera). Wypłata transz/`Completed`
+  jest w całości domknięta w fazie 2.
+
+> **Status fazy 0/1:** kod w `rust/programs/bestcrow/`; `cargo check`,
+> `anchor build --arch v0` i testy workspace przechodzą. Faza 2 (głosowanie,
+> wypłata transz, zakończenie) pozostaje do zrobienia — patrz niżej.
 
 ### 2. Program Solana: etapy, wypłaty i testy nadużyć
 

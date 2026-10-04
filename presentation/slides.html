@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bestcrow — Finance Without Intermediaries</title>
+  <style>
+    :root { --ink:#12241c; --paper:#f7f7f2; --accent:#ed795c; --muted:#5b6b60; --line:#dce6dd; --deep:#12362c; --mint:#e3f0df; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background:var(--paper); color:var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .reveal { position:relative; width:100%; height:100vh; overflow:hidden; }
+    .slides { position:absolute; inset:0; }
+    .slides > section { position:absolute; inset:0; display:none; flex-direction:column; justify-content:center; padding:5.5vh 8vw; }
+    .slides > section.present { display:flex; }
+    h1 { font-size:clamp(30px,4.4vw,54px); line-height:1.06; letter-spacing:-1.2px; margin:0 0 .35em; font-weight:800; }
+    h2 { font-size:clamp(24px,3vw,40px); margin:0 0 .5em; letter-spacing:-.6px; font-weight:800; }
+    p, li { font-size:clamp(15px,1.6vw,22px); line-height:1.5; }
+    ul { margin:.2em 0; padding-left:1.15em; } li { margin:.4em 0; }
+    .kicker { text-transform:uppercase; letter-spacing:.2em; font-size:clamp(11px,1vw,14px); font-weight:800; color:var(--accent); margin-bottom:.7em; }
+    .lead { font-size:clamp(17px,1.9vw,26px); color:var(--muted); max-width:64ch; }
+    .accent { color:var(--accent); } .muted { color:var(--muted); }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:3.5vw; align-items:start; }
+    .card { border:1px solid var(--line); border-radius:12px; padding:1em 1.2em; background:#fff; }
+    .card h3 { font-size:clamp(15px,1.4vw,20px); margin:0 0 .3em; }
+    .card p { font-size:clamp(13px,1.2vw,17px); margin:0; color:var(--muted); }
+    .tag { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:.18em .65em; font-size:.62em; font-weight:800; color:var(--muted); margin:.15em .3em 0 0; }
+    .tag.ok { background:var(--mint); color:#2f7a4a; border-color:#bfe0c8; }
+    .tag.warn { background:#fbe6de; color:#b1533a; border-color:#f2c7b8; }
+    .flow { display:flex; flex-wrap:wrap; gap:.5em; align-items:center; font-size:clamp(13px,1.35vw,18px); font-weight:700; }
+    .flow span { background:#fff; border:1px solid var(--line); border-radius:8px; padding:.45em .7em; }
+    .flow i { color:var(--accent); font-style:normal; }
+    .big { font-size:clamp(34px,5vw,64px); font-weight:800; letter-spacing:-1.5px; }
+    .footer { position:absolute; bottom:2.2vh; left:8vw; right:8vw; display:flex; justify-content:space-between; font-size:clamp(11px,1vw,14px); color:var(--muted); }
+    .progress { position:absolute; top:0; left:0; height:3px; background:var(--accent); width:0; z-index:5; }
+    a { color:var(--deep); }
+    .small { font-size:clamp(12px,1.15vw,16px); color:var(--muted); }
+    .badge { display:inline-block; background:var(--deep); color:#fff; border-radius:8px; padding:.4em .7em; font-size:.7em; font-weight:800; letter-spacing:.04em; }
+    .notes { position:absolute; bottom:0; left:0; right:0; max-height:32vh; overflow:auto; background:#fff; border-top:1px solid var(--line); padding:1em 8vw; font-size:14px; display:none; z-index:10; }
+    .notes.on { display:block; }
+    @media print {
+      .reveal, .slides { position:static; height:auto; }
+      .slides > section { position:static; display:flex !important; page-break-after:always; min-height:96vh; }
+      .footer, .notes, .progress { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="progress" id="progress"></div>
+    <div class="slides">
+
+      <!-- 1 -->
+      <section>
+        <div class="kicker">HackYeah 2026 · Superteam Poland</div>
+        <h1>Bestcrow</h1>
+        <p class="lead" style="max-width:70ch">Escrow that releases by <span class="accent">rule</span>, not by an operator. Startup/prototype crowdfunding on Solana where backers approve each release and every failure path is permissionless.</p>
+        <div style="margin-top:1.2em" class="flow">
+          <span>Anchor program</span><i>·</i><span>Backer-weighted votes</span><i>·</i><span>Pro-rata refunds</span>
+        </div>
+        <div class="footer"><span>Track: Finance Without Intermediaries</span><span class="muted">solana-bestcrow</span></div>
+        <aside class="notes">One sentence: we remove the crowdfunding operator's custody and its power to decide payouts. Everything that replaces it is in the on-chain program, not our backend.</aside>
+      </section>
+
+      <!-- 2 -->
+      <section>
+        <div class="kicker">Problem · who it hurts</div>
+        <h2>Two people who don't know each other, and a platform both must trust</h2>
+        <div class="cols">
+          <div class="card"><h3>The creator</h3><p>Needs capital before the work exists. Today that means a platform decides if the campaign qualifies, and holds every pledge until it pays out.</p></div>
+          <div class="card"><h3>The backer</h3><p>Hands money to a stranger and to the platform. If the target is met, the creator usually gets the whole balance — with no further accountability.</p></div>
+        </div>
+        <p class="lead" style="margin-top:1.1em">Named users: <b>early-stage startup / prototype teams</b> raising in milestones, and their backers. Reward/grant funding — not equity.</p>
+        <div class="footer"><span>Bestcrow</span><span class="muted">Slide 2 / 10</span></div>
+        <aside class="notes">The pain is twofold: trust in the counterparty, and trust in the intermediary. We picked a specific user rather than "everyone": prototype teams and their backers.</aside>
+      </section>
+
+      <!-- 3 -->
+      <section>
+        <div class="kicker">The intermediary, named</div>
+        <h2>The operator is <span class="accent">custody</span> plus <span class="accent">discretionary payout</span></h2>
+        <div class="cols">
+          <div class="card"><h3>Before (Kickstarter-style)</h3><p>Custodies all pledges · charges a cut · can freeze or reject · on success pays the creator everything at once.</p></div>
+          <div class="card"><h3>After (Bestcrow)</h3><p>Funds sit in a program-owned vault · schedule + recipients fixed at creation · releases gated by backer votes · failure refunds pro-rata.</p></div>
+        </div>
+        <p class="lead" style="margin-top:1.1em"><b>Why not a database?</b> A DB admin can edit state and still controls the payout rails. Here the rule — not an operator — is the source of truth.</p>
+        <div class="footer"><span>Bestcrow</span><span class="muted">Slide 3 / 10</span></div>
+        <aside class="notes">This slide is the 30% criterion. The intermediary disappears because custody and the payout decision both move into the program. Our backend only indexes and displays.</aside>
+      </section>
+
+      <!-- 4 -->
+      <section>
+        <div class="kicker">How it works · part 1</div>
+        <h2>Terms are <span class="accent">locked before</span> the first pledge</h2>
+        <div class="flow" style="margin:.6em 0 1em">
+          <span>Create draft</span><i>→</i><span>Add 2–5 tranches (≤50% each, =100%)</span><i>→</i><span>Seal &amp; open funding</span>
+        </div>
+        <ul>
+          <li>Funding window <b>7–183 days</b>; overfunding allowed — no cap at the goal.</li>
+          <li>Each tranche's share, work period and recipients are fixed; no post-start edits.</li>
+          <li>A creator <b>bond</b> is posted separately from backer funds.</li>
+        </ul>
+        <div class="footer"><span>bestcrow program · Phase 1</span><span class="muted">Slide 4 / 10</span></div>
+        <aside class="notes">The schedule is committed atomically. No one — not the creator, not us — can reshape the tranches after money is in. This is the "identical for every participant" the brief asks for.</aside>
+      </section>
+
+      <!-- 5 -->
+      <section>
+        <div class="kicker">How it works · part 2</div>
+        <h2>Backers approve each release — the rule decides</h2>
+        <div class="cols">
+          <div class="card"><h3>Evidence → 7-day vote</h3><p>Weight = final pledge. Approval needs <b>&gt;50%</b> of all contributions. Exactly 50% or no votes = no.</p></div>
+          <div class="card"><h3>One revision, then stop</h3><p>First failure opens <b>30 days</b> to improve, then a second 7-day vote. Second failure → termination.</p></div>
+        </div>
+        <p class="lead" style="margin-top:1.1em">An approved tranche is payable <b>exactly once</b> to a fixed recipient. Anyone may trigger the technical release once the rule is satisfied.</p>
+        <div class="footer"><span>bestcrow program · Phase 2</span><span class="muted">Slide 5 / 10</span></div>
+        <aside class="notes">Votes measure approval, not product quality — we say that plainly. The point is that no admin picks winners; the program enforces the threshold and the windows.</aside>
+      </section>
+
+      <!-- 6 -->
+      <section>
+        <div class="kicker">How it works · failure is first-class</div>
+        <h2>Every failure path is <span class="accent">permissionless</span> and pro-rata</h2>
+        <ul>
+          <li><b>Missed goal:</b> no fee; each backer claims 100% of their own pledge.</li>
+          <li><b>Termination:</b> the remaining pool is frozen and refunded proportionally to frozen pledge weight.</li>
+          <li><b>Double-claim guard:</b> refunds/releases are exactly-once; a closed ledger can't be replayed.</li>
+          <li><b>Anyone can submit</b> an eligible finalize/refund transaction — a timer never moves money by itself.</li>
+        </ul>
+        <div class="footer"><span>bestcrow program</span><span class="muted">Slide 6 / 10</span></div>
+        <aside class="notes">This is the question judges ask: what if one party disappears? The answer is on-chain: a failed goal refunds, a rejected milestone terminates and refunds pro-rata, and no single party can block it permanently.</aside>
+      </section>
+
+      <!-- 7 -->
+      <section>
+        <div class="kicker">Proof, not a mockup</div>
+        <h2>Live on Solana <span class="accent">devnet</span> — confirmed transactions</h2>
+        <p class="lead"><span class="badge">Deployed</span> &nbsp;charity-vault · <code>74GsU9x…ZBVr</code>-style program with 18 instructions</p>
+        <ul class="small" style="margin-top:.6em">
+          <li>Program id <b>74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG</b> — owner: BPF upgradeable loader.</li>
+          <li>End-to-end flow exercised on devnet: create → pledge → finalize → claim/refund, with explorer links.</li>
+          <li>Runnable demo: <code>docker compose up --build</code> → web app + indexer/API.</li>
+        </ul>
+        <div class="footer"><span>evidence: devnet program + tx links</span><span class="muted">Slide 7 / 10</span></div>
+        <aside class="notes">Show the explorer link live. The deployed program already handles the base escrow plus a staged/vote flow; the newer bestcrow program refines the economics. We keep a recording as backup.</aside>
+      </section>
+
+      <!-- 8 -->
+      <section>
+        <div class="kicker">Built for the ecosystem</div>
+        <h2>On Solana's current stack — reusable, auditable, testable</h2>
+        <div class="cols">
+          <div class="card"><h3>On-chain</h3><p>Rust + <b>Anchor 1.1.2</b>. Fixed-size account state, checked math everywhere, program-owned vault PDAs.</p></div>
+          <div class="card"><h3>Client &amp; tests</h3><p><b>@solana/kit</b> + Wallet Standard (Phantom), Next.js 16. <b>LiteSVM</b> end-to-end tests; 22 client tests, 7 program tests green.</p></div>
+        </div>
+        <p class="lead" style="margin-top:1.1em">A Node/SQLite indexer + REST API serves fast listings; the program remains the only authority over funds. Tokenless — no oracle, no market to manipulate.</p>
+        <div class="footer"><span>repo map: rust/ · frontend/ · backend/</span><span class="muted">Slide 8 / 10</span></div>
+        <aside class="notes">This is the 15% implementation-potential slide: clean modules, generated IDL/client, and tests. A judge can open the repo and see the program matches the demo.</aside>
+      </section>
+
+      <!-- 9 -->
+      <section>
+        <div class="kicker">What is true today</div>
+        <h2>Verified, implemented, and the one honest limit</h2>
+        <div class="cols">
+          <div class="card">
+            <h3>Status tags</h3>
+            <p><span class="tag ok">verified</span> devnet deploy + confirmed tx<br>
+               <span class="tag ok">implemented</span> program, client, indexer<br>
+               <span class="tag warn">in progress</span> target-MVP economics<br>
+               <span class="tag warn">planned</span> mainnet hardening</p>
+          </div>
+          <div class="card"><h3>The honest limit</h3><p>The program enforces <b>money</b>, not worthiness or delivery. It can't verify a product or prove handover. Upgrade authority is disclosed. Real use needs a legal/KYC layer — we show the financial mechanics.</p></div>
+        </div>
+        <div class="footer"><span>credibility &gt; superlatives</span><span class="muted">Slide 9 / 10</span></div>
+        <aside class="notes">We lead with limits on purpose. Backer votes express approval, not objective quality; previously paid funds can't be clawed back. Judges reward awareness, not pretending.</aside>
+      </section>
+
+      <!-- 10 -->
+      <section>
+        <div class="kicker">Why this wins · what's next</div>
+        <h2>Rule-enforced custody — and a roadmap that keeps the trust honest</h2>
+        <div class="cols">
+          <div class="card"><h3>Mapped to the rubric</h3>
+            <p><b>Relevance 30%</b> operator custody removed on-chain · <b>Completeness 25%</b> live devnet flow · <b>Idea 20%</b> named user + honest boundary · <b>Impl. 15%</b> Anchor + tests + client · <b>Originality 10%</b> tokenless conditional vault.</p>
+          </div>
+          <div class="card"><h3>Next one week</h3>
+            <p>Finish the staged vote/release on the new program, run the adversarial test matrix, redeploy, and add a durable public terms/evidence store. Then grants + a design partner.</p>
+          </div>
+        </div>
+        <p class="lead" style="margin-top:1em"><b>Ask:</b> try the live demo, read the repo, and point us at a real charity/prototype team to pilot.</p>
+        <div class="footer"><span>Bestcrow · Finance Without Intermediaries</span><span class="muted">Slide 10 / 10</span></div>
+        <aside class="notes">Close on the rubric and one concrete ask. If asked "why us": the rule, not an operator, moves the money — and it is already live on devnet today.</aside>
+      </section>
+
+    </div>
+  </div>
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slides > section'));
+      var i = 0;
+      function show(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach(function (s, k) { s.classList.toggle('present', k === i); });
+        var p = document.getElementById('progress');
+        if (p) p.style.width = ((i + 1) / slides.length * 100) + '%';
+        location.hash = String(i + 1);
+      }
+      function toggleNotes() { document.querySelectorAll('.notes').forEach(function (n) { n.classList.toggle('on'); }); }
+      document.addEventListener('keydown', function (e) {
+        if (['ArrowRight', ' ', 'PageDown'].indexOf(e.key) >= 0) show(i + 1);
+        else if (['ArrowLeft', 'PageUp'].indexOf(e.key) >= 0) show(i - 1);
+        else if (e.key === 'n' || e.key === 'N') toggleNotes();
+        else if (e.key === 'Home') show(0);
+        else if (e.key === 'End') show(slides.length - 1);
+      });
+      document.addEventListener('click', function (e) { if (!e.target.closest('.notes')) show(i + 1); });
+      var start = parseInt((location.hash || '').slice(1), 10);
+      show(isNaN(start) ? 0 : start - 1);
+    })();
+  </script>
+</body>
+</html>
