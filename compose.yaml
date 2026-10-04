@@ -9,6 +9,8 @@ services:
       args:
         NEXT_PUBLIC_SOLANA_RPC_URL: ${NEXT_PUBLIC_SOLANA_RPC_URL:-https://api.devnet.solana.com}
         NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
+        NEXT_PUBLIC_SOLANA_RPC_RETRY_ATTEMPTS: ${RPC_RETRY_ATTEMPTS:-3}
+        NEXT_PUBLIC_SOLANA_RPC_RETRY_BASE_DELAY_MS: ${RPC_RETRY_BASE_DELAY_MS:-250}
     image: charity-vault-web:latest
     init: true
     ports:
@@ -29,6 +31,8 @@ services:
       PORT: "4000"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      RPC_RETRY_ATTEMPTS: ${RPC_RETRY_ATTEMPTS:-3}
+      RPC_RETRY_BASE_DELAY_MS: ${RPC_RETRY_BASE_DELAY_MS:-250}
       CHARITY_VAULT_PROGRAM_ID: ${CHARITY_VAULT_PROGRAM_ID:-74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG}
       CLUSTER: devnet
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}

@@ -9,6 +9,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 import type { AppClient } from '../providers';
+import { withRpcRetry } from './rpc-retry.ts';
 
 export const PROGRAM_ID = address(process.env.NEXT_PUBLIC_CHARITY_VAULT_PROGRAM_ID || '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG');
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
@@ -330,16 +331,18 @@ const splitDiscriminator = new Uint8Array([96, 124, 192, 177, 178, 219, 22, 146]
 const claimDiscriminator = new Uint8Array([113, 109, 47, 96, 242, 219, 61, 165]);
 
 export async function getCampaign(client: AppClient, accountAddress: Address) {
-  const { value } = await client.rpc.getAccountInfo(accountAddress, { encoding: 'base64', commitment: 'confirmed' }).send();
+  const { value } = await withRpcRetry(
+    () => client.rpc.getAccountInfo(accountAddress, { encoding: 'base64', commitment: 'confirmed' }).send(),
+  );
   if (!value) return null;
   if (value.owner !== PROGRAM_ID || value.executable) throw new Error('This account is not a Charity Vault campaign.');
   return decodeCampaign(accountAddress, bytes(value.data));
 }
 
 export async function getCampaigns(client: AppClient) {
-  const accounts = await client.rpc.getProgramAccounts(PROGRAM_ID, {
+  const accounts = await withRpcRetry(() => client.rpc.getProgramAccounts(PROGRAM_ID, {
     encoding: 'base64', commitment: 'confirmed', filters: [{ dataSize: BigInt(CAMPAIGN_SIZE) }],
-  }).send();
+  }).send());
   const campaigns: Campaign[] = [];
   for (const { pubkey, account } of accounts) {
     if (account.owner !== PROGRAM_ID || account.executable) continue;
@@ -350,7 +353,9 @@ export async function getCampaigns(client: AppClient) {
 
 export async function getLedger(client: AppClient, campaign: Address, donor: Address) {
   const ledgerAddress = await donorPda(campaign, donor);
-  const { value } = await client.rpc.getAccountInfo(ledgerAddress, { encoding: 'base64', commitment: 'confirmed' }).send();
+  const { value } = await withRpcRetry(
+    () => client.rpc.getAccountInfo(ledgerAddress, { encoding: 'base64', commitment: 'confirmed' }).send(),
+  );
   if (!value) return null;
   if (value.owner !== PROGRAM_ID || value.executable) throw new Error('Invalid donor ledger owner.');
   const data = bytes(value.data);
@@ -360,7 +365,9 @@ export async function getLedger(client: AppClient, campaign: Address, donor: Add
 }
 
 async function getAccount<T>(client: AppClient, accountAddress: Address, decode: (address: Address, data: Uint8Array) => T | null): Promise<T | null> {
-  const { value } = await client.rpc.getAccountInfo(accountAddress, { encoding: 'base64', commitment: 'confirmed' }).send();
+  const { value } = await withRpcRetry(
+    () => client.rpc.getAccountInfo(accountAddress, { encoding: 'base64', commitment: 'confirmed' }).send(),
+  );
   if (!value || value.owner !== PROGRAM_ID || value.executable) return null;
   try {
     return decode(accountAddress, bytes(value.data));

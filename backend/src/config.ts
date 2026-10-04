@@ -42,6 +42,8 @@ export const config = {
   rpcUrl: str('SOLANA_RPC_URL', 'https://api.devnet.solana.com'),
   programId: str('CHARITY_VAULT_PROGRAM_ID', '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG'),
   cluster: str('CLUSTER', 'devnet'),
+  rpcRetryAttempts: Math.max(0, Math.min(8, int('RPC_RETRY_ATTEMPTS', 3))),
+  rpcRetryBaseDelayMs: Math.max(0, Math.min(10_000, int('RPC_RETRY_BASE_DELAY_MS', 250))),
   dbPath: (() => {
     const raw = str('DB_PATH', './data/bestcrow.db');
     return raw === ':memory:' ? raw : resolve(here, '..', raw);

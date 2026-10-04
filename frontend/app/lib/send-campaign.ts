@@ -11,6 +11,7 @@ import {
   signTransactionMessageWithSigners,
 } from '@solana/kit';
 import type { AppClient } from '../providers';
+import { withRpcRetry } from './rpc-retry.ts';
 
 const LAMPORTS_PER_SOL = 1_000_000_000n;
 /** Rough ceiling for a single signed v0 transaction: 5000 fee + a small buffer. */
@@ -60,7 +61,7 @@ export function describeSendError(error: unknown): string {
  * missing program rather than an empty wallet.
  */
 async function assertFeePayerFunded(client: AppClient, payer: Address): Promise<void> {
-  const { value } = await client.rpc.getBalance(payer, { commitment: 'confirmed' }).send();
+  const { value } = await withRpcRetry(() => client.rpc.getBalance(payer, { commitment: 'confirmed' }).send());
   if (value < MIN_FEE_LAMPORTS) {
     throw new Error(
       `Your wallet has ${formatSol(value)} SOL on devnet — not enough to pay the network fee. ` +
@@ -87,7 +88,9 @@ export async function sendCampaignInstruction(
 ): Promise<string> {
   await assertFeePayerFunded(client, payer);
 
-  const { value: latestBlockhash } = await client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
+  const { value: latestBlockhash } = await withRpcRetry(
+    () => client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send(),
+  );
 
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -111,7 +114,7 @@ export async function sendCampaignInstruction(
     rpcSubscriptions: client.rpcSubscriptions,
   });
   try {
-    await sendAndConfirm(signed, { commitment: 'confirmed' });
+    await withRpcRetry(() => sendAndConfirm(signed, { commitment: 'confirmed' }));
   } catch (error) {
     throw new Error(describeSendError(error));
   }

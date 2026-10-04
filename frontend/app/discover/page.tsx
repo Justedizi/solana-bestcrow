@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 
-import { DiscoverView } from '../discover-view';
-
-export const metadata: Metadata = {
-  title: 'Discover campaigns — Common Ground',
-  description:
-    'Browse live charity campaigns. Each one has a public goal, deadline, and immutable refund rules enforced by a Solana program.',
-};
+export const metadata: Metadata = { title: 'Discover | Charity Vault' };
 
 export default function DiscoverPage() {
-  return <DiscoverView />;
+  return (
+    <section aria-labelledby="discover-title">
+      <h1 id="discover-title" className="text-2xl font-medium">Discover</h1>
+      <p className="mt-2 text-slate-600">Campaign discovery will be added here.</p>
+    </section>
+  );
 }

@@ -54,6 +54,8 @@ npm test
 | `PORT` | `4000` | HTTP port |
 | `CORS_ORIGIN` | `*` | Comma-separated allowed origins, or `*` |
 | `SOLANA_RPC_URL` | `https://api.devnet.solana.com` | RPC endpoint |
+| `RPC_RETRY_ATTEMPTS` | `3` | Retries after HTTP 429 throttling |
+| `RPC_RETRY_BASE_DELAY_MS` | `250` | Initial exponential-backoff delay |
 | `CHARITY_VAULT_PROGRAM_ID` | `74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG` | Program id |
 | `CLUSTER` | `devnet` | Label used in responses/Explorer links |
 | `DB_PATH` | `./data/bestcrow.db` | SQLite file (`:memory:` for ephemeral) |

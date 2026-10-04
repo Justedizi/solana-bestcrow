@@ -3,6 +3,8 @@ import { address, createSolanaRpc, getBase58Encoder, signature as parseSignature
 import { ApiError, badRequest, notFound } from '../../../api/middleware/error.js';
 import type { InstructionPlan } from '../../../solana/program.js';
 import { PaymentRepository } from './repository.js';
+import { config } from '../../../config.js';
+import { withRpcRetry } from '../../../solana/retry.js';
 import type {
   ConfirmPaymentInput,
   CreatePaymentInput,
@@ -139,11 +141,14 @@ export class RpcPaymentVerifier implements PaymentVerifier {
   }
 
   async verify(payment: PaymentDto, signature: string): Promise<void> {
-    const result = await this.rpc.getTransaction(parseSignature(signature), {
-      encoding: 'json',
-      commitment: 'finalized',
-      maxSupportedTransactionVersion: 1,
-    }).send();
+    const result = await withRpcRetry(
+      () => this.rpc.getTransaction(parseSignature(signature), {
+        encoding: 'json',
+        commitment: 'finalized',
+        maxSupportedTransactionVersion: 1,
+      }).send(),
+      { attempts: config.rpcRetryAttempts, baseDelayMs: config.rpcRetryBaseDelayMs },
+    );
     if (result === null) throw new ApiError(409, 'Transaction has not finalized on this cluster');
     const transactionResult = record(result);
     const meta = record(transactionResult?.meta);
