@@ -30,7 +30,7 @@ npm run dev
 2. The creation form collects and validates the entire campaign before the
    first transaction: startup description and durable metadata, goal, 7-day to
    six-month fundraising window, and 2-5 milestone allocations each at most
-   50% and totaling exactly 100%. Show the 0.1 SOL creator deposit, network
+   50% and totaling exactly 100%. Show the no creator deposit, network
    costs, and the 1% success-only platform fee separately. Freeze campaign
    terms when fundraising starts; there is no post-start editing or adding
    milestones. The deposit's exact return conditions/timing remain to be

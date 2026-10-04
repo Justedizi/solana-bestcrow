@@ -24,9 +24,7 @@ before the listed payout and voting defects are fixed and tested.
 - If the goal is met, the program charges a fixed **1% of the full amount
   raised**, once, to a published treasury. Tranche percentages apply to the
   remaining 99%, with lamport rounding accounted for.
-- A creator deposits **0.1 SOL** separately from backer funds. Its exact
-  return/forfeiture conditions and waiting period still need a final protocol
-  decision before the accounting code is implemented.
+- The MVP has no creator deposit. Bot protection and anti spam measures are deferred to P6 and are presentation ideas for now.
 - Evidence opens a seven-day vote. Approval requires YES weight strictly
   greater than half of all final contributions. Exactly 50%, abstention and
   no votes do not approve a release. A first failure gives 30 full days to
@@ -63,7 +61,7 @@ The current program differs materially from the agreed MVP:
 | Terms | Up to five milestones can be added during fundraising | Lock a complete 2-5 tranche, 100% schedule before any pledge |
 | Vote | 70% of raised weight; no enforced vote window | Strictly over 50%; seven-day rounds with a 30-day revision interval |
 | Settlement | A closed milestone claim can be recreated; split can be bypassed | Exactly-once release and mandatory configured recipients |
-| Bond | Reclaimable right after success; inaccessible after a failed goal | Mandatory 0.1 SOL deposit with complete return/forfeiture rules |
+| Bond | Reclaimable right after success; inaccessible after a failed goal | Mandatory no creator deposit with complete return/forfeiture rules |
 | Refund | Individual claims plus `refund_all`; no cancellation | Remove batch refund, support funding-window cancellation and scalable claims |
 | Fee | No platform fee | Fixed 1% only on successful fundraising |
 | Web | Campaign pages are placeholders | Complete startup-specific creation, discovery, detail and account journeys |

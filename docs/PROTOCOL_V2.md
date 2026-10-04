@@ -18,7 +18,7 @@ z legacy. Konfigurację może inicjalizować tylko upgrade authority programu.
 | Parametr | Wartosc | Regula |
 | --- | ---: | --- |
 | Prowizja | 100 bps | `floor(gross_raised * 100 / 10000)`, pobierana raz tylko po sukcesie |
-| Kaucja twórcy | 100,000,000 lamportow | Dokladnie 0,1 SOL, osobny vault, nie jest waga glosu |
+| Kaucja twórcy | 0 | Brak kaucji w MVP; ochrona przed botami jest poza zakresem |
 | Minimalna zbiorka | 604,800 s | 7 dni, wlacznie z granica |
 | Maksymalna zbiorka | 15,811,200 s | Dokladnie 183 dni, czyli roboczo zdefiniowane pol roku |
 | Pierwszy dowod | 2,592,000 s | 30 dni od finalizacji udanej zbiorki |
@@ -45,7 +45,7 @@ kwoty do wydania.
 
 Rent kont jest oddzielnym kosztem. Po prawidlowym zamknieciu konta wraca do
 platnika wskazanego przez zasady konta. Nie wolno mieszac rent, prowizji,
-kaucji, zarezerwowanych roszczen ani puli refundow w jednym liczniku.
+zarezerwowanych roszczen ani puli refundow w jednym liczniku.
 
 ### Glosowanie i brak aktywnosci
 
@@ -56,20 +56,17 @@ jest porazka. Glosowanie nie rozstrzyga sie samo: po terminie dowolny caller
 moze wyslac instrukcje finalizacji. Do tego czasu srodki pozostaja zablokowane.
 
 Creator musi zlozyc pierwszy dowod do 30 dni od udanej finalizacji. Brak dowodu
-otwiera permissionless termination z utrata kaucji. Po pierwszej porazce dowod
+otwiera permissionless termination. Po pierwszej porazce dowod
 moze byc zlozony w pelnym 30-dniowym oknie poprawy, lecz drugie glosowanie
 zaczyna sie dopiero po jego koncu. Brak poprawy lub druga porazka konczy
-kampanie i kieruje pozostale, niezarezerwowane srodki oraz kaucje do puli
+kampanie i kieruje pozostale, niezarezerwowane srodki do puli
 refundow.
 
-### Kaucja
+### Brak kaucji w MVP
 
-Kaucja 0,1 SOL jest blokowana przy utworzeniu kampanii. Przy nieosiagnietym
-celu mozna ja odebrac po 7-dniowym okresie oczekiwania od finalizacji porazki.
-Przy sukcesie mozna ja odebrac po rozliczeniu wszystkich transz i 7 dniach od
-ostatniego rozliczenia. Przy braku pierwszego dowodu, drugiej porazce lub
-dobrowolnym zakonczeniu przed pelnym sukcesem kaucja przepada do puli refundow.
-Nie ma `claim_bond` dostepnego tylko dlatego, ze kampania osiagnela cel.
+MVP nie pobiera kaucji od twórcy. Ochrona przed botami, rate limiting i
+pozostałe mechanizmy antyspamowe są tematami późniejszej prezentacji i fazy
+P6. Żadne środki twórcy nie są mieszane z budżetem backerów ani pulą refundów.
 
 ### Adres treasury: problem operacyjny
 
@@ -97,15 +94,14 @@ Przed migracja trzeba zatrzymac tworzenie nowych legacy kampanii w klientach.
 
 | Konto | Seeds | Najwazniejsze pola |
 | --- | --- | --- |
-| `ProtocolConfigV2` | `[b"config-v2"]` | `version`, `treasury`, `fee_bps`, `creator_bond_lamports`, stale okresy, `bump` |
-| `CampaignV2` | `[b"campaign-v2", creator, campaign_id]` | creator, goal, funding deadline, `terms_hash`, `terms_uri`, status, gross/final raised, fee, net budget, tranche cursor, reserved/refund pool, bond status |
+| `ProtocolConfigV2` | `[b"config-v2"]` | `version`, `treasury`, `fee_bps`, stale okresy, `bump` |
+| `CampaignV2` | `[b"campaign-v2", creator, campaign_id]` | creator, goal, funding deadline, `terms_hash`, `terms_uri`, status, gross/final raised, fee, net budget, tranche cursor, reserved/refund pool |
 | `TrancheV2` | `[b"tranche-v2", campaign, index]` | share bps, amount net, proof hash/URI, proof deadline, vote windows, yes/no weights, round, status, settled flag |
 | `BackerLedgerV2` | `[b"backer-v2", campaign, backer]` | backer, amount, cancelled/claimed flags, final weight, bump |
 | `VoteRecordV2` | `[b"vote-v2", tranche, round, backer]` | backer, round, approve, weight, bump |
 | `SplitV2` | `[b"split-v2", campaign, tranche]` | fixed recipients and bps, sum 10000 |
 | `ClaimV2` | `[b"claim-v2", campaign, tranche]` | gross/net total, claimed, recipients, settled, bump |
 | `VaultV2` | `[b"vault-v2", campaign]` | program-owned SOL vault |
-| `BondVaultV2` | `[b"bond-v2", campaign]` | program-owned 0,1 SOL deposit |
 
 `CampaignV2` przechowuje liczby i statusy potrzebne do rozliczenia, ale nie
 powiela listy wszystkich backerow. Pojedynczy ledger jest jedynym zrodlem
@@ -124,7 +120,7 @@ Projektowany IDL powinien zawierac co najmniej:
 4. `submit_evidence`, `finalize_proof_timeout`, `vote_milestone` i
    `finalize_vote` - okna 7/30/7 dni oraz permissionless timeouty.
 5. `release_tranche`, `withdraw_claim`, `terminate`, `claim_refund` oraz
-   `claim_bond` - jednorazowe roszczenia, rezerwy i ustalone reguly kaucji.
+   jednorazowe roszczenia i rezerwy bez kaucji.
 6. `close_backer_ledger` i `close_campaign` - zwrot rent po zachowaniu
    snapshotow potrzebnych do rozliczenia.
 
@@ -157,7 +153,7 @@ stringami lamportow. Hash to `sha256(canonical_utf8_bytes)`.
 Minimalny obiekt `bestcrow/campaign-terms/v2` zawiera:
 
 ```json
-{"schema":"bestcrow/campaign-terms/v2","asset":"SOL","campaign_id":"42","creator":"<address>","goal_lamports":"10000000000","funding_duration_seconds":604800,"fee_bps":100,"creator_bond_lamports":"100000000","vote_duration_seconds":604800,"revision_duration_seconds":2592000,"second_vote_duration_seconds":604800,"first_proof_deadline_seconds":2592000,"tranches":[{"index":0,"share_bps":3000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]},{"index":1,"share_bps":3000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]},{"index":2,"share_bps":4000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]}],"refund_policy":"remaining_unreserved_pro_rata_v2","content_uri":"ar://<terms-document-txid>"}
+{"schema":"bestcrow/campaign-terms/v2","asset":"SOL","campaign_id":"42","creator":"<address>","goal_lamports":"10000000000","funding_duration_seconds":604800,"fee_bps":100,"vote_duration_seconds":604800,"revision_duration_seconds":2592000,"second_vote_duration_seconds":604800,"first_proof_deadline_seconds":2592000,"tranches":[{"index":0,"share_bps":3000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]},{"index":1,"share_bps":3000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]},{"index":2,"share_bps":4000,"proof_period_seconds":2592000,"recipients":[{"address":"<address>","share_bps":10000}]}],"refund_policy":"remaining_unreserved_pro_rata_v2","content_uri":"ar://<terms-document-txid>"}
 ```
 
 Program przechowuje `terms_hash` i `terms_uri` w `CampaignV2`. URI wskazuje

@@ -20,13 +20,13 @@ pub use funding_v2::CloseBackerLedgerV2;
 use anchor_lang::prelude::*;
 pub(crate) use funding_v2::{
     __client_accounts_add_tranche_v2, __client_accounts_cancel_pledge_v2,
-    __client_accounts_claim_failed_bond_v2, __client_accounts_claim_refund_v2,
+    __client_accounts_claim_refund_v2,
     __client_accounts_create_draft_v2, __client_accounts_finalize_funding_v2,
     __client_accounts_initialize_config_v2, __client_accounts_pledge_v2,
     __client_accounts_seal_terms_v2,
 };
 pub use funding_v2::{
-    AddTrancheV2, CancelPledgeV2, ClaimFailedBondV2, ClaimRefundV2, CreateDraftV2,
+    AddTrancheV2, CancelPledgeV2, ClaimRefundV2, CreateDraftV2,
     FinalizeFundingV2, InitializeConfigV2, PledgeV2, SealTermsV2,
 };
 pub(crate) use instructions::claim_refund::__client_accounts_claim_refund;
@@ -134,12 +134,6 @@ pub mod charity_vault {
     }
     pub fn claim_refund_v2(ctx: Context<ClaimRefundV2>) -> Result<()> {
         funding_v2::claim_refund(ctx)
-    }
-    pub fn claim_failed_bond_v2(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
-        funding_v2::claim_failed_bond(ctx)
-    }
-    pub fn claim_completed_bond_v2(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
-        funding_v2::claim_completed_bond(ctx)
     }
     pub fn close_backer_ledger_v2(ctx: Context<CloseBackerLedgerV2>) -> Result<()> {
         funding_v2::close_backer_ledger(ctx)

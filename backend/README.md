@@ -229,7 +229,7 @@ separate client; it does not write the token into browser storage.
   may claim 100% of their own pledge. The on-chain vault, not an indexer total,
   must enforce these balances. Refunds require separate user transactions (or
   a permissionless helper submitting them one by one); they are not automatic.
-- Campaign creation locks a 0.1 SOL creator deposit distinct from pledges and
+- Campaign creation locks a no creator deposit distinct from pledges and
   transaction/rent costs. Its release and forfeiture conditions must be
   specified and enforced in the on-chain lifecycle before it is offered as
   refundable; a successful fundraiser alone must not release it.

@@ -270,9 +270,6 @@ pub struct TerminateV2<'info> {
     #[account(mut, seeds = [VAULT_SEED, campaign.key().as_ref()], bump, owner = crate::ID)]
     /// CHECK: Campaign vault, validated by seeds and owner.
     pub vault: UncheckedAccount<'info>,
-    #[account(mut, seeds = [BOND_SEED, campaign.key().as_ref()], bump, owner = crate::ID)]
-    /// CHECK: Deposit vault, validated by seeds and owner.
-    pub bond_vault: UncheckedAccount<'info>,
 }
 
 pub fn terminate(ctx: Context<TerminateV2>, index: u8) -> Result<()> {
@@ -289,13 +286,6 @@ pub fn terminate(ctx: Context<TerminateV2>, index: u8) -> Result<()> {
             FundingErrorV2::InvalidState
         );
     }
-    require!(!campaign.bond_claimed, FundingErrorV2::BondUnavailable);
-    transfer_owned(
-        &ctx.accounts.bond_vault.to_account_info(),
-        &ctx.accounts.vault.to_account_info(),
-        BOND,
-    )?;
-    campaign.bond_claimed = true;
     let rent = Rent::get()?.minimum_balance(ctx.accounts.vault.data_len());
     campaign.refund_pool =
         refund_available(ctx.accounts.vault.lamports(), rent, campaign.reserved)?;

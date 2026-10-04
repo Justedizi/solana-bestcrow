@@ -5,9 +5,7 @@ pub const CAMPAIGN_SEED: &[u8] = b"campaign-v2";
 pub const TRANCHE_SEED: &[u8] = b"tranche-v2";
 pub const BACKER_SEED: &[u8] = b"backer-v2";
 pub const VAULT_SEED: &[u8] = b"vault-v2";
-pub const BOND_SEED: &[u8] = b"bond-v2";
 pub const DAY: i64 = 86_400;
-pub const BOND: u64 = 100_000_000;
 pub const FEE_BPS: u16 = 100;
 pub const MAX_TRANCHES: usize = 5;
 pub const MAX_RECIPIENTS: usize = 5;
@@ -29,7 +27,6 @@ pub struct ProtocolConfigV2 {
     pub version: u8,
     pub treasury: Pubkey,
     pub fee_bps: u16,
-    pub creator_bond_lamports: u64,
     pub bump: u8,
 }
 
@@ -56,7 +53,6 @@ pub struct CampaignV2 {
     pub net_budget: u64,
     pub settled_at: i64,
     pub first_proof_deadline: i64,
-    pub bond_claimed: bool,
     pub current_tranche: u8,
     pub proof_deadline: i64,
     pub reserved: u64,
@@ -113,8 +109,6 @@ pub enum FundingErrorV2 {
     Overflow,
     #[msg("Insufficient campaign funds")]
     InsufficientFunds,
-    #[msg("Creator deposit is not available")]
-    BondUnavailable,
 }
 
 #[derive(Accounts)]
@@ -138,7 +132,6 @@ pub fn initialize_config(ctx: Context<InitializeConfigV2>, treasury: Pubkey) -> 
         version: 2,
         treasury,
         fee_bps: FEE_BPS,
-        creator_bond_lamports: BOND,
         bump: ctx.bumps.config,
     });
     Ok(())
@@ -156,9 +149,6 @@ pub struct CreateDraftV2<'info> {
     #[account(init, payer = creator, space = 0, seeds = [VAULT_SEED, campaign.key().as_ref()], bump)]
     /// CHECK: New program-owned zero-data campaign vault.
     pub vault: UncheckedAccount<'info>,
-    #[account(init, payer = creator, space = 0, seeds = [BOND_SEED, campaign.key().as_ref()], bump)]
-    /// CHECK: New program-owned zero-data deposit vault.
-    pub bond_vault: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -190,7 +180,6 @@ pub fn create_draft(
         net_budget: 0,
         settled_at: 0,
         first_proof_deadline: 0,
-        bond_claimed: false,
         current_tranche: 1,
         proof_deadline: 0,
         reserved: 0,
@@ -198,16 +187,6 @@ pub fn create_draft(
         refunds_paid: 0,
         bump: ctx.bumps.campaign,
     });
-    system_program::transfer(
-        CpiContext::new(
-            system_program::ID,
-            system_program::Transfer {
-                from: ctx.accounts.creator.to_account_info(),
-                to: ctx.accounts.bond_vault.to_account_info(),
-            },
-        ),
-        ctx.accounts.config.creator_bond_lamports,
-    )?;
     Ok(())
 }
 
@@ -479,61 +458,6 @@ pub fn claim_refund(ctx: Context<ClaimRefundV2>) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct ClaimFailedBondV2<'info> {
-    #[account(mut)]
-    pub creator: Signer<'info>,
-    #[account(mut, has_one = creator, seeds = [CAMPAIGN_SEED, creator.key().as_ref(), &campaign.campaign_id.to_le_bytes()], bump = campaign.bump)]
-    pub campaign: Account<'info, CampaignV2>,
-    #[account(mut, seeds = [BOND_SEED, campaign.key().as_ref()], bump, owner = crate::ID)]
-    /// CHECK: Campaign-derived program-owned deposit vault.
-    pub bond_vault: UncheckedAccount<'info>,
-}
-
-pub fn claim_failed_bond(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
-    let campaign = &mut ctx.accounts.campaign;
-    require!(
-        campaign.status == FundingStatusV2::Failed && !campaign.bond_claimed,
-        FundingErrorV2::BondUnavailable
-    );
-    require!(
-        Clock::get()?.unix_timestamp
-            >= campaign
-                .settled_at
-                .checked_add(7 * DAY)
-                .ok_or(FundingErrorV2::Overflow)?,
-        FundingErrorV2::BondUnavailable
-    );
-    campaign.bond_claimed = true;
-    transfer_owned(
-        &ctx.accounts.bond_vault.to_account_info(),
-        &ctx.accounts.creator.to_account_info(),
-        BOND,
-    )
-}
-
-pub fn claim_completed_bond(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
-    let campaign = &mut ctx.accounts.campaign;
-    require!(
-        campaign.status == FundingStatusV2::Completed && !campaign.bond_claimed,
-        FundingErrorV2::BondUnavailable
-    );
-    require!(
-        Clock::get()?.unix_timestamp
-            >= campaign
-                .settled_at
-                .checked_add(7 * DAY)
-                .ok_or(FundingErrorV2::Overflow)?,
-        FundingErrorV2::BondUnavailable
-    );
-    campaign.bond_claimed = true;
-    transfer_owned(
-        &ctx.accounts.bond_vault.to_account_info(),
-        &ctx.accounts.creator.to_account_info(),
-        BOND,
-    )
-}
-
-#[derive(Accounts)]
 pub struct CloseBackerLedgerV2<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [CAMPAIGN_SEED, campaign.creator.as_ref(), &campaign.campaign_id.to_le_bytes()], bump = campaign.bump)]
@@ -718,7 +642,6 @@ mod tests {
             net_budget: 0,
             settled_at: 0,
             first_proof_deadline: 0,
-            bond_claimed: false,
             current_tranche: 1,
             proof_deadline: 0,
             reserved: 0,
