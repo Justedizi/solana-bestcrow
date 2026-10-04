@@ -15,7 +15,7 @@ const wsUrl = rpcUrl.replace(/^http/, 'ws');
 export const client = createClient()
   .use(walletSigner({ chain: 'solana:devnet' }))
   .use(solanaRpcSubscriptionsConnection(wsUrl))
-  .use(solanaRpc({ rpcUrl, transactionConfig: { version: 0 } }));
+  .use(solanaRpc({ rpcUrl, transactionConfig: { version: 1 } }));
 
 export type AppClient = typeof client;
 

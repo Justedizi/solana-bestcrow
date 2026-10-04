@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import CampaignList from './discover/campaign-list';
 
 export default function HomePage() {
   return (
@@ -12,10 +13,9 @@ export default function HomePage() {
         </div>
         <div className="rounded-3xl bg-emerald-200 p-7"><p className="text-sm font-semibold">Protocol snapshot</p><div className="mt-8 grid grid-cols-2 gap-6"><Stat value="2–5" label="milestones" /><Stat value="7 days" label="every vote" /><Stat value="1%" label="success fee" /><Stat value="0 SOL" label="creator deposit" /></div></div>
       </div>
-      <div><div className="mb-5 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">Featured projects</p><h2 className="mt-2 text-3xl font-semibold">Ideas worth backing</h2></div><Link className="text-sm font-semibold underline" href="/discover">View all</Link></div><div className="grid gap-5 md:grid-cols-3"><ProjectCard title="Orbit Kitchen" category="Food systems" raised="12.4 SOL" progress="68%" color="bg-orange-200" /><ProjectCard title="Lumen Labs" category="Climate hardware" raised="8.1 SOL" progress="42%" color="bg-blue-200" /><ProjectCard title="Mosaic OS" category="Developer tools" raised="21.7 SOL" progress="91%" color="bg-purple-200" /></div></div>
+      <div><div className="mb-5 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">Live from Devnet</p><h2 className="mt-2 text-3xl font-semibold">V2 campaigns</h2></div><Link className="text-sm font-semibold underline" href="/discover">Discovery workspace</Link></div><CampaignList /></div>
     </section>
   );
 }
 
 function Stat({ value, label }: { value: string; label: string }) { return <div><p className="text-2xl font-semibold">{value}</p><p className="mt-1 text-xs text-slate-600">{label}</p></div>; }
-function ProjectCard({ title, category, raised, progress, color }: { title: string; category: string; raised: string; progress: string; color: string }) { return <article className="rounded-2xl border border-slate-200 bg-white p-5"><div className={`h-32 rounded-xl ${color}`} /><p className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">{category}</p><h3 className="mt-2 text-xl font-semibold">{title}</h3><div className="mt-5 h-1.5 rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-slate-950" style={{ width: progress }} /></div><div className="mt-3 flex justify-between text-sm"><span>{raised} raised</span><span className="text-slate-500">{progress}</span></div></article>; }

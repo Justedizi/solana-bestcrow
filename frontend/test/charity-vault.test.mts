@@ -29,7 +29,7 @@ test('campaign account size matches the on-chain layout', () => {
 
 // The fee-payer error surfaces from the RPC plugin nested several levels deep.
 // These lock in the translation a user actually sees.
-import { describeSendError } from '../app/lib/send-campaign.ts';
+import { describeSendError, sendCampaignInstruction } from '../app/lib/send-campaign.ts';
 
 function nested(codes: number[], message = 'outer'): unknown {
   let node: unknown = { name: 'SolanaError', message, context: { __code: codes[codes.length - 1] } };
@@ -59,7 +59,37 @@ test('describeSendError explains a campaign ID collision', () => {
   assert.match(describeSendError(error), /already used.*new campaign ID/);
 });
 
+test('describeSendError does not hide a nested preflight cause', () => {
+  const insufficientFunds = {
+    context: { __code: -32002, logs: [], unitsConsumed: 0n },
+    cause: { context: { __code: 7050005 } },
+  };
+  const expiredBlockhash = {
+    context: { __code: -32002, logs: [], unitsConsumed: 0n },
+    cause: { context: { __code: 7050008 } },
+  };
+
+  assert.match(describeSendError(insufficientFunds), /not have enough devnet SOL/);
+  assert.match(describeSendError(expiredBlockhash), /recent blockhash/);
+});
+
 test('describeSendError falls back to the original message', () => {
   assert.equal(describeSendError(new Error('boom')), 'boom');
   assert.equal(describeSendError('nope'), 'Transaction failed');
+});
+
+test('campaign creation checks account rent before asking the wallet to sign', async () => {
+  const client = {
+    rpc: {
+      getBalance: () => ({ send: async () => ({ value: 1n }) }),
+      getMinimumBalanceForRentExemption: (size: bigint) => ({
+        send: async () => size === 0n ? 20n : 100n,
+      }),
+    },
+  };
+
+  await assert.rejects(
+    sendCampaignInstruction(client as never, 'payer' as never, {} as never, {} as never),
+    /campaign creation currently needs about.*account rent/,
+  );
 });
