@@ -1,9 +1,23 @@
 pub mod constants;
 pub mod error;
+pub mod funding_v2;
 pub mod instructions;
 pub mod state;
+pub(crate) use funding_v2::__client_accounts_close_backer_ledger_v2;
+pub use funding_v2::CloseBackerLedgerV2;
 
 use anchor_lang::prelude::*;
+pub(crate) use funding_v2::{
+    __client_accounts_add_tranche_v2, __client_accounts_cancel_pledge_v2,
+    __client_accounts_claim_failed_bond_v2, __client_accounts_claim_refund_v2,
+    __client_accounts_create_draft_v2, __client_accounts_finalize_funding_v2,
+    __client_accounts_initialize_config_v2, __client_accounts_pledge_v2,
+    __client_accounts_seal_terms_v2,
+};
+pub use funding_v2::{
+    AddTrancheV2, CancelPledgeV2, ClaimFailedBondV2, ClaimRefundV2, CreateDraftV2,
+    FinalizeFundingV2, InitializeConfigV2, PledgeV2, SealTermsV2,
+};
 pub(crate) use instructions::claim_refund::__client_accounts_claim_refund;
 pub(crate) use instructions::claim_success::__client_accounts_claim_success;
 pub(crate) use instructions::create_campaign::__client_accounts_create_campaign;
@@ -30,6 +44,59 @@ declare_id!("74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG");
 #[program]
 pub mod charity_vault {
     use super::*;
+
+    pub fn initialize_protocol_config_v2(
+        ctx: Context<InitializeConfigV2>,
+        treasury: Pubkey,
+    ) -> Result<()> {
+        funding_v2::initialize_config(ctx, treasury)
+    }
+    pub fn create_campaign_draft_v2(
+        ctx: Context<CreateDraftV2>,
+        campaign_id: u64,
+        goal: u64,
+        duration: i64,
+    ) -> Result<()> {
+        funding_v2::create_draft(ctx, campaign_id, goal, duration)
+    }
+    pub fn add_tranche_v2(
+        ctx: Context<AddTrancheV2>,
+        index: u8,
+        share_bps: u16,
+        proof_period: i64,
+        recipients: Vec<Pubkey>,
+        shares: Vec<u16>,
+    ) -> Result<()> {
+        funding_v2::add_tranche(ctx, index, share_bps, proof_period, recipients, shares)
+    }
+    pub fn seal_terms_v2(
+        ctx: Context<SealTermsV2>,
+        terms_hash: [u8; 32],
+        terms_uri: String,
+    ) -> Result<()> {
+        funding_v2::seal_terms(ctx, terms_hash, terms_uri)
+    }
+    pub fn pledge_v2(ctx: Context<PledgeV2>, amount: u64) -> Result<()> {
+        funding_v2::pledge(ctx, amount)
+    }
+    pub fn cancel_pledge_v2(ctx: Context<CancelPledgeV2>) -> Result<()> {
+        funding_v2::cancel_pledge(ctx)
+    }
+    pub fn finalize_funding_v2(ctx: Context<FinalizeFundingV2>) -> Result<()> {
+        funding_v2::finalize_funding(ctx)
+    }
+    pub fn claim_refund_v2(ctx: Context<ClaimRefundV2>) -> Result<()> {
+        funding_v2::claim_refund(ctx)
+    }
+    pub fn claim_failed_bond_v2(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
+        funding_v2::claim_failed_bond(ctx)
+    }
+    pub fn claim_completed_bond_v2(ctx: Context<ClaimFailedBondV2>) -> Result<()> {
+        funding_v2::claim_completed_bond(ctx)
+    }
+    pub fn close_backer_ledger_v2(ctx: Context<CloseBackerLedgerV2>) -> Result<()> {
+        funding_v2::close_backer_ledger(ctx)
+    }
 
     pub fn create_campaign(
         ctx: Context<CreateCampaign>,

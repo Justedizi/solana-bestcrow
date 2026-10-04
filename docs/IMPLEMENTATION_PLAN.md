@@ -139,6 +139,27 @@ od starego układu kont jako docelowego API.
 
 ### 1. Program Solana: finansowanie i rachunkowość
 
+Status wykonania P1: dodano osobny moduł
+[`funding_v2.rs`](../rust/programs/charity-vault/src/funding_v2.rs).
+Pięć testów bibliotecznych przeszło (`cargo test --lib --offline`).
+Checkboxy poniżej pozostają otwarte do potwierdzenia instrukcji w testach
+transakcyjnych. Build SBF nie zakończył się: instalacja `platform-tools`
+zwróciła `Odmowa dostępu (os error 5)`. Nie wykonywano deploymentu.
+
+| Zadanie | Wynik tego etapu | Problem do pełnego zamknięcia |
+| --- | --- | --- |
+| P1.1 | Dodane konta V2, szkic, 2–5 transz, dodatnie udziały <=50%, suma 100%, 7–183 dni i `seal_terms_v2`; po starcie dodawanie transz jest odrzucane | Brak testu transakcyjnego zamknięcia warunków i obsługi kont |
+| P1.2 | `pledge_v2` bez limitu celu; `cancel_pledge_v2` tylko przed końcem okna, zamknięcie ledgeru i zwrot rent | Brak testu transakcyjnego transferów i ponownej wpłaty po anulowaniu |
+| P1.3 | V2 nie ma listy donorów ani limitu 12; `claim_refund_v2` jest indywidualny i permissionless z odbiorcą związanym z ledgerem | Legacy `refund_all` zachowane dla V1; jego globalne usunięcie wymaga migracji/wycofania V1 i aktualizacji klientów. Test 13+ portfeli pozostaje do wykonania |
+| P1.4 | Finalizacja zamraża kwotę, pobiera 1% tylko przy sukcesie i rozdziela netto z resztą w ostatniej transzy; stan blokuje ponowną finalizację | Brak testu transakcyjnego treasury, powtórzeń i pełnych refundów |
+| P1.5 | 0,1 SOL w oddzielnym vault; zwrot po porażce celu lub `Completed` po siedmiu dniach | Brak adresu treasury do konfiguracji; P2 musi wdrożyć przepadek oraz ustawienie `Completed` i czasu ostatniego rozliczenia |
+| P1.6 | Permissionless `close_backer_ledger_v2` zwraca rent do backera tylko po `Completed` | P2 musi wyznaczyć zakończenie wszystkich głosowań i zobowiązań; przedtem instrukcja jest celowo niedostępna |
+
+Jednokrotna konfiguracja V2 jest autoryzowana aktualnym upgrade authority
+programu, aby pierwszy przypadkowy caller nie mógł przejąć adresu prowizji.
+Nie jest to wymóg podpisu platformy przy tworzeniu kampanii. Brak instrukcji
+zmiany konfiguracji; inicjalizować przed usunięciem upgrade authority.
+
 - [ ] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
   po dodaniu 2-5 etapów; nie przyjmować wpłat przed zamknięciem warunków.
   Odrzucać zmiany po starcie, sumy != 10000 bps, etap 0 lub >5000 bps oraz

@@ -4,6 +4,13 @@ Ten dokument zamyka P0.1-P0.3. Opisuje projektowany protokol dla nowych
 kampanii startupowych. Obecny program Rust pozostaje legacy i nie implementuje
 jeszcze tego formatu.
 
+Aktualizacja P1: moduł `funding_v2.rs` implementuje część finansowania
+opisanej wersji; to nie jest pełna implementacja protokołu V2.
+Layout kont w kodzie jest aktualnym źródłem dla następnego etapu P2;
+poniższa tabela pozostaje projektem pełnej wersji (w tym dodatkowych kont
+głosowania i roszczeń). API finansowania ma suffix `_v2`, aby nie kolidować
+z legacy. Konfigurację może inicjalizować tylko upgrade authority programu.
+
 ## P0.1: zamkniete decyzje protokolu
 
 ### Parametry stale
