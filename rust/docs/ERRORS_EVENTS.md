@@ -95,6 +95,23 @@ etapu zdarzenie opisuje utworzenie claimu, a nie transfer SOL.
 Kwoty `RefundIssued` i `TerminationRefund` nie obejmują osobnego zwrotu
 rezerwy zamykanego ledgeru.
 
+## Nowe błędy i zdarzenia wymagane w MVP
+
+Uwaga dla docelowego MVP: powyższe kody błędów i zdarzenia opisują **obecny**
+program. Implementacja nowych reguł powinna dodać rozróżnialne błędy dla
+niezatwierdzonego harmonogramu, zbyt krótkiej/długiej zbiórki (7-183 dni),
+nieprawidłowych 2-5 transz lub sumy różnej od 100%, próby zmiany warunków po
+starcie, wpłaty/głosu poza oknem, zbyt wczesnego rozstrzygnięcia głosowania,
+spóźnionej poprawy, ponownego claimu transzy i przedwczesnego odbioru kaucji.
+Nie należy przypisywać tym sytuacjom numerów 6000-6032 bez zmiany kodu.
+
+Indekser i klient będą też potrzebować obserwowalnych zmian stanu dla
+anulowania wpłaty, zatwierdzenia harmonogramu, jednorazowego pobrania 1%
+prowizji od zebranej kwoty po sukcesie, rozpoczęcia i końca obu 7-dniowych
+rund, 30-dniowego okresu poprawy, definitywnego rozliczenia transzy oraz
+zwrotu lub konfiskaty 0,1 SOL kaucji. Zdarzenie nie zastępuje kontroli stanu
+kont, szczególnie przy ponownym dostarczeniu logów.
+
 ## Wskazówki dla indeksowania
 
 - Przetwarzaj tylko transakcje zakończone sukcesem: log może powstać przed późniejszym błędem i wycofaniem zmian.

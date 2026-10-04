@@ -148,6 +148,41 @@ Ostatni odbiorca dostaje resztę po zaokrągleniach dla danej wypłaty.
 Split jest dobierany podczas `withdraw_claim`, nie kopiowany do claimu.
 Po pełnej wypłacie claim jest zamykany.
 
+## Docelowe zmiany stanu: nie ma ich jeszcze w kontach
+
+Powyższe pola opisują aktualny binarny format kont. Uzgodnione reguły MVP
+wymagają nowego formatu lub nowych kont; klient nie może domniemywać tych
+danych z obecnych pól:
+
+- `goal` pozostaje progiem sukcesu, a nie limitem wpłat. Końcowe `raised`
+  obejmuje nadwyżkę i jest zamrażane po terminie; ledger musi obsłużyć
+  `cancel_pledge` podczas aktywnej zbiórki. Rejestr `donors: [Pubkey; 12]`
+  i liczniki zależne od niego należy zastąpić modelem bez limitu liczby
+  wspierających. Rozliczenie zwrotów nie może czekać na wszystkich.
+- Warunki zbiórki startupowej mają być zatwierdzone przed pierwszą wpłatą:
+  7-183 dni, 2-5 dodatnich transz licząc początkową, najwyżej 50% każda,
+  udziały sumujące się do 100%. Po starcie `milestone_count`, udziałów,
+  terminów, hasha warunków i splitu nie można zmieniać. Obecne kwoty
+  `base_budget`/`initial_tranche` nie zapewniają tych własności.
+- Stan musi rozróżniać kwotę brutto `raised`, prowizję 1% pobraną raz przy
+  sukcesie, kwotę netto na transze oraz odrębną kaucję 0,1 SOL. Resztę
+  zaokrągleń trzeba przypisać deterministycznie. Po porażce celu zwrot
+  ledgeru wynosi 100% wpłaty, a prowizja zero.
+- Etap potrzebuje trwałego okna głosowania (7 dni w każdej rundzie), końca
+  30-dniowego terminu na poprawę, statusu definitywnego rozliczenia oraz
+  wymuszonej kolejności i terminu. Po zamknięciu claimu status nie może
+  pozwalać na ponowne przyznanie tej samej transzy.
+- Split i przyznany claim muszą zachowywać prawo odbiorców nawet po
+  zakończeniu kampanii. Kaucja ma własny stan, oddzielony od wpłat i
+  refund pool. Jej warunki zwrotu lub przepadku po nieosiągnięciu celu,
+  prawidłowym ukończeniu, dobrowolnym zakończeniu i definitywnej
+  porażce, włącznie z czasem oczekiwania, wymagają ustalenia przed
+  zmianą kontraktu.
+
+Po zmianie formatu kont istniejące dane i ręczne dekodery wymagają migracji
+albo świadomej wersjonowanej obsługi. Nie należy interpretować obecnych bajtów
+według przyszłego schematu.
+
 ## Odczyt przez klienta
 
 1. Wyznacz PDA z tabeli albo wyszukaj konta przez `getProgramAccounts`.

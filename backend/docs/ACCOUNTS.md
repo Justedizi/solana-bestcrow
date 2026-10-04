@@ -1,5 +1,9 @@
 # Accounts API
 
+This page documents **implemented routes**. The wallet-first backer experience
+and creator organization profile described below are MVP requirements, not
+available endpoints.
+
 Base URL: `http://localhost:4000`. Requests and responses use JSON. Protected routes
 require `Authorization: Bearer <token>`. Account timestamps are Unix seconds;
 monetary amounts are decimal lamport strings. The backend holds no wallet keys.
@@ -35,6 +39,8 @@ Session response:
 A wallet has `{id,userId,address,createdAt}`. A payment has
 `{id,userId,campaign,wallet,amount,status,signature,createdAt,expiresAt,confirmedAt,
 instruction,memoInstruction,reference,cluster}`. Status is `pending` or `confirmed`.
+The payments list only contains intents created through this API. It is not a
+complete history of a wallet's on-chain pledges or refunds.
 
 ## Register, link and log in
 
@@ -57,8 +63,9 @@ wallet, random nonce and validity period. It does not authorize moving funds.
 
 ## Make a payment
 
-Payment handling means a SOL pledge to a Charity Vault campaign. `amount` must be
-a positive `u64` decimal string; `100000000` means 0.1 SOL.
+Payment handling currently means a SOL pledge to the legacy Charity Vault
+program. `amount` must be a positive `u64` decimal string; `100000000` means
+0.1 SOL.
 
 1. Create an intent with a wallet linked to the authenticated account.
 2. Convert `instruction` and `memoInstruction` to Kit instructions. Preserve all
@@ -109,3 +116,33 @@ raw request bodies and stack traces are not logged or returned to clients.
 `DB_PATH` for each network. The Express app does not trust forwarded IP headers by
 default; configure trusted proxy addresses when deployed behind a proxy. Use
 HTTPS for session transport outside local development.
+
+## Target account flow (not implemented)
+
+- A connected wallet signs a short-lived, single-use challenge. The backend
+  creates an account on first successful proof or resumes the existing one;
+  email and password are optional and are not a prerequisite for backing a
+  startup. Ownership proof authenticates the wallet; it is not identity or
+  startup verification.
+- A creator may attach organization name and contact/presentation details to
+  the account. No identity review, approval status, or platform signature is
+  required to create a campaign on-chain or appear as a creator. Bot protection
+  can be addressed later without introducing an MVP verification gate.
+- "My contributions" is based on indexed on-chain donor ledgers for every
+  linked wallet and shows current stake, cancellation/refund eligibility,
+  individual refund claims, campaign stage, and relevant transaction links.
+  API payment intents are supplementary records only; a direct wallet pledge
+  must still appear. Large wallet histories require pagination and an indexer
+  freshness indicator.
+- Failure of the fundraising goal returns 100% of each backer's pledge with no
+  1% platform fee. The user submits an individual refund transaction; the API
+  cannot promise an automatic transfer. The program and API must also support
+  pledge cancellation during fundraising under the agreed lifecycle rules.
+- Creator deposit accounting is separate: 0.1 SOL locked at campaign creation,
+  with return/forfeit conditions and release time enforced by the program. The
+  1% fee applies once to all funds raised only when the goal is met; overfunding
+  is allowed. Network fees and rent are distinct costs, not deductions from a
+  backer's failed-campaign refund.
+- Reward entitlement and fulfilment (codes, shipping details, notifications)
+  can be implemented server-side after the escrow, wallet, and contribution
+  flows work. Do not store private delivery data on-chain.

@@ -122,6 +122,21 @@ Fee payer pokrywa opłatę transakcji i może być inną osobą niż `creator`,
 Przekroczenie terminu samo nie uruchamia żadnej funkcji: potrzebna jest transakcja.
 W testach LiteSVM można zmienić sysvar `Clock`, aby sprawdzić te warunki.
 
+W docelowym MVP zegar będzie też wyznaczał sztywne 7-183 dni zbiórki,
+dwie 7-dniowe rundy głosowania i pełne 30 dni na poprawę między nimi.
+`Clock` pozwala egzekwować warunek przy transakcji, ale nie uruchamia jej
+sam: po upływie czasu ktoś nadal musi wywołać `finalize_vote`, zakończenie,
+zwrot lub wypłatę. Reguły te **nie istnieją jeszcze** w obecnym programie.
+
+Podobnie obecny `refund_all` i tablica 12 wspierających są do usunięcia.
+Docelowy zwrot po nieosiągnięciu celu to indywidualne 100% wpłaty bez
+prowizji; 1% całej zebranej kwoty trafia do platformy tylko przy sukcesie.
+Osobna kaucja 0,1 SOL dla każdej nowej kampanii etapowej oraz rezerwy rent
+i opłaty transakcyjne nie są częścią procentowego podziału transz.
+Docelowe MVP tworzy wyłącznie kampanie etapowe; zwykła zbiórka pozostaje
+ścieżką legacy obecnego kodu. Integracja musi pokazać koszty i prowizję
+oddzielnie, a po zmianie programu uaktualnić obliczenia i dekodery kont.
+
 `emit!` zapisuje zdarzenia Anchor w logach wykonania. Backend może je dekodować,
 ale stan kont jest podstawą rozliczeń. Opis zdarzeń i błędów znajduje się
 w [osobnym dokumencie](ERRORS_EVENTS.md).

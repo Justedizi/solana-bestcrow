@@ -1,8 +1,11 @@
-# Charity Vault frontend
+# Bestcrow frontend
 
-The frontend is currently a minimal Tailwind CSS scaffold. Routes are present as
-functional React components with no wallet, campaign, or Solana UI behavior wired
-into them yet.
+The current frontend is a minimal Tailwind CSS scaffold. Routes are present as
+React placeholders; wallet, campaign, and Solana interactions are not wired up.
+Bestcrow's target product is startup crowdfunding with staged releases. The
+requirements below describe planned MVP behavior, not existing UI.
+Follow the [ordered implementation plan](../docs/IMPLEMENTATION_PLAN.md)
+for the financial rules and backend dependencies.
 
 Reusable Solana helpers remain in `app/lib/` for the next implementation pass.
 They retry transient Solana HTTP 429 responses and show a dedicated-provider
@@ -12,3 +15,40 @@ hint after the retry budget is exhausted.
 npm install
 npm run dev
 ```
+
+## MVP screens and interaction requirements (planned)
+
+1. A wallet-first session creates or resumes a backer account after a signed
+   challenge, with no email required. A creator can add organization details
+   for display. Do not show a verification badge or require platform approval
+   to create an on-chain campaign.
+2. The creation form collects and validates the entire campaign before the
+   first transaction: startup description and durable metadata, goal, 7-day to
+   six-month fundraising window, and 2-5 milestone allocations each at most
+   50% and totaling exactly 100%. Show the 0.1 SOL creator deposit, network
+   costs, and the 1% success-only platform fee separately. Freeze campaign
+   terms when fundraising starts; there is no post-start editing or adding
+   milestones. The deposit's exact return conditions/timing remain to be
+   specified and must not be implied in the UI until enforced on-chain.
+3. Discovery and detail views show startup campaigns, allow the raised amount
+   and progress to exceed the goal, and fetch metadata from durable storage.
+   Check the on-chain description/proof hashes before displaying content as
+   verified. Never treat a shareable URL parameter as trusted campaign copy.
+4. Detail views show the actual on-chain lifecycle, proof links, claim status,
+   fee and net milestone budget. Voting starts with a fixed seven-day window;
+   approval requires yes weight strictly greater than 50% of all eligible
+   pledged weight. Display that denominator, not just votes cast. No votes
+   means rejection. Rejection opens a full 30-day revision window, then a
+   seven-day second ballot. Surface permissionless finalize/timeout actions.
+5. Pledging, cancellation during fundraising, individual full refunds after a
+   failed goal, and approved milestone withdrawals must build the correct
+   transactions. A failed goal takes no platform fee; refunds require a user
+   transaction and are not automatic. Splits, already approved claims, and
+   one-time milestone payment must match program accounting.
+6. "My contributions" reconciles linked wallets with indexed on-chain stakes
+   and claims, including direct wallet payments that never used a backend
+   payment intent. Show eligibility, transaction status, and indexer freshness.
+
+Reward entitlement and delivery are later server-side work. The UI must not
+promise a reward fulfilment system before it exists. The frontend, backend,
+program, and devnet deployment must use the same current program ID and rules.

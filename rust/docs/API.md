@@ -401,3 +401,26 @@ nie może zastąpić brakujących kontroli programu.
 | Zakończenie blokuje niewypłacone claimy | Ich środki pozostają częścią puli zwrotów, a ich konta nie są automatycznie zamykane |
 
 Są to ograniczenia aktualnego API, nie gwarancje docelowego produktu ani wynik pełnego audytu.
+
+## Wymagane zmiany API przed MVP
+
+Ta sekcja jest listą zmian do wykonania, **nie** opisem działających obecnie
+instrukcji. Sygnatury i kody błędów nowych instrukcji trzeba ustalić przy
+implementacji; przykłady powyżej pozostają prawidłowe tylko dla bieżącego kodu.
+Docelowe MVP tworzy wyłącznie kampanie etapowe; `create_campaign` i
+`claim_success` zwykłej kampanii to ścieżka legacy do wycofania z produktu.
+
+| Obszar | Docelowa kontrola programu |
+| --- | --- |
+| Tworzenie i publikacja | Rozdzielić szkic od uruchomienia zbiórki albo utworzyć wszystkie warunki atomowo. Przy starcie zweryfikować 7-183 dni, 2-5 dodatnich transz (wliczając pierwszą), każdą najwyżej 50% i sumę dokładnie 100%. Po starcie nie dopuścić dodania/edycji opisu, harmonogramu i splitu. Bez podpisu platformy lub weryfikacji twórcy. |
+| Wpłaty | Usunąć ograniczenie `raised <= goal` i globalny rejestr 12 adresów. Zachować osobny ledger dla każdego wspierającego; umożliwić anulowanie własnej wpłaty przed terminem i poprawnie pomniejszać `raised`. Po terminie zamrozić końcową sumę. |
+| Finał zbiórki i prowizja | Gdy `raised < goal`, żadnej prowizji i prawo do zwrotu dokładnie całej wpłaty. Gdy `raised >= goal`, pobrać dokładnie raz 1% od **całej** wpłaconej sumy, również nadwyżki. Rozdzielić prowizję od kosztów sieci/rent oraz od kaucji. Wyliczać transze od 99% pozostałej kwoty z jednoznacznym przydziałem reszt zaokrągleń. |
+| Głosowanie | Zapisać początek/koniec rundy. `vote_milestone` działa tylko przez 7 dni, `finalize_vote` dopiero po zakończeniu okna. „Tak” musi reprezentować ponad 50% **wszystkich** zamrożonych wpłat; dokładnie 50% i brak głosów oznaczają odmowę. Po pierwszej odmowie jest sztywne 30 dni na ponowny dowód; druga 7-dniowa runda zaczyna się po upływie 30 dni, także przy wcześniejszym zgłoszeniu poprawki. Bez dowodu po 30 dniach lub po drugiej odmowie każdy może zakończyć kampanię. |
+| Etapy i wypłaty | Egzekwować terminy i kolejność, a przekroczony termin etapu dopuścić do zakończenia kampanii bez twórcy. Trwale oznaczać przyznanie/rozliczenie transzy, także po zamknięciu claimu, by nie powstał drugi claim. Po zatwierdzeniu dowolny caller może uruchomić transzę. Jeżeli zadeklarowano split, jego PDA i odbiorcy muszą być wyegzekwowani z zapisanego stanu; brak możliwości ominięcia przez inne konto. |
+| Zakończenie | Zarezerwować lub wypłacić już przyznane, niewypłacone roszczenia przed obliczeniem puli zwrotów. Pozostałe środki i ewentualnie skonfiskowaną kaucję rozdzielać indywidualnie; nie pozwolić twórcy dowolnie wyzerować prawa do zatwierdzonej transzy. Dodać drogę zakończenia po bezczynności twórcy. |
+| Kaucja | Każda nowa kampania MVP wpłaca przy utworzeniu dokładnie 0,1 SOL do oddzielnego vault. Przed implementacją ustalić warunki i czas zwrotu/przepadku po nieosiągnięciu celu, pełnym sukcesie, dobrowolnym zakończeniu, bezczynności i definitywnej porażce. Nie pozwolić na wcześniejsze `claim_bond`. |
+| Zwroty | Wycofać `refund_all`. Zostawić indywidualny `claim_refund` oraz indywidualny zwrot po zakończeniu; żadna ścieżka nie może wymagać tablicy wszystkich wspierających. |
+
+Zmiana układu `CampaignAccount` i danych wejściowych będzie zmianą protokołu:
+po implementacji należy wygenerować nowe IDL i uaktualnić klientów, indeksowanie,
+testy oraz tę dokumentację. Sam update interfejsu nie uszczelnia kontraktu.

@@ -1,260 +1,126 @@
-# Bestcrow — milestone-gated crowdfunding on Solana
+# Bestcrow
 
-**Backers fund a campaign in stages and decide every release. No operator holds the
-money, takes a cut, or decides who gets paid.**
+Bestcrow is a proposed Solana escrow for **startup and prototype crowdfunding**.
+Backers fund a campaign in SOL, the creator receives a fixed starting tranche,
+and later tranches depend on contribution-weighted votes. The platform may
+index campaigns and host private reward data, but it must not hold campaign
+funds or decide whether a release or refund is allowed.
 
-Built for **HackYeah 2026 · Superteam Poland — “Finance Without Intermediaries.”**
-Working repo name: `solana-bestcrow`; the web app is branded *Common Ground*.
+**Important:** this README distinguishes the [target protocol](docs/IMPLEMENTATION_PLAN.md)
+from the program currently in the repository. The target rules, fee and deposit
+are **not implemented yet**. Do not use the existing staged program for real funds
+before the listed payout and voting defects are fixed and tested.
 
-> Crowdfunding today runs on a trusted operator: GoFundMe, Kickstarter, Zrzutka.pl,
-> Siepomaga. The operator custodies the money, charges a fee, can freeze a campaign,
-> and after a target is met typically pays the creator the whole balance — even if
-> nothing is ever delivered. Bestcrow moves custody and settlement into a Solana
-> program: funds sit in a program-owned vault, releases are unlocked only by the
-> milestone rules and backer votes fixed at creation, and if a campaign stops, every
-> backer can reclaim their share of what is left.
+## Agreed MVP
 
-**Target user (named explicitly):** early-stage teams and small charities that raise
-in milestones, and the backers/donors who fund them — people who today must trust a
-platform to hold the money and to release it fairly. Not investors; funding is
-reward/grant-based, not equity.
+- Startup/prototype campaigns funded only in SOL. A creator can prepare a
+  draft; all financial terms are locked before the first contribution.
+- Funding lasts 7-183 days. A campaign has 2-5 tranches, including the initial
+  release. Every tranche is at most 50% and the shares sum to exactly 100%.
+- Contributions may exceed the goal. Backers may cancel their deposits only
+  during the funding window. Final contribution amounts fix vote weights.
+- If the goal is missed, each backer is entitled to 100% of their contributed
+  SOL, with no platform fee. Network transaction fees are separate.
+- If the goal is met, the program charges a fixed **1% of the full amount
+  raised**, once, to a published treasury. Tranche percentages apply to the
+  remaining 99%, with lamport rounding accounted for.
+- A creator deposits **0.1 SOL** separately from backer funds. Its exact
+  return/forfeiture conditions and waiting period still need a final protocol
+  decision before the accounting code is implemented.
+- Evidence opens a seven-day vote. Approval requires YES weight strictly
+  greater than half of all final contributions. Exactly 50%, abstention and
+  no votes do not approve a release. A first failure gives 30 full days to
+  improve; then a second seven-day vote runs. A second failure, missed proof
+  deadline or abandonment must have an on-chain termination/refund path.
+- Anyone can submit an eligible finalization/settlement transaction, but only
+  the program's fixed rules choose recipients and amounts. Refunds are
+  individual claims; a timer alone cannot send a transaction.
+- Creator profiles may appear in the web app without identity verification.
+  There is no platform co-signature or admin approval gate for on-chain
+  campaign creation in this MVP. Bot resistance is future product work.
 
----
+The full protocol decisions, open questions and chronological task list are in
+[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
-## The intermediary we remove
+## Current repository state
 
-| Before (managed crowdfunding) | After (Bestcrow) |
-| --- | --- |
-| Platform custodies all pledges | Funds sit in a program-owned PDA vault |
-| Platform decides releases and refunds | `goal`, `deadline`, milestone budgets, and vote rules are fixed at creation |
-| Platform takes a fee, can freeze or reject | No operator account; only the encoded rules move money |
-| Success pays the creator everything at once | Releases are milestone-gated; the rest stays in escrow |
-| Refunds are discretionary | Permissionless termination + pro-rata refunds from a frozen pool |
+At commit `15cb14a`, the Anchor program contains a base all-or-nothing flow
+and a staged flow. It has campaign, vault, donor, milestone, vote, split and
+claim accounts. The Node backend provides an indexer, SQLite read model,
+REST API, email/password accounts, linked-wallet login and payment intents.
+The current Next.js pages for campaign creation and detail are **scaffolds**;
+library code and a Solana client exist, but the promised end-to-end UI is not
+wired. The backend is not the authority for settlement.
 
-**Why a blockchain and not a database?** Because here the trust is in a rule that
-no one — not the creator, not the backers, not us — can rewrite. A database admin
-can edit campaign state and still controls the payment rails; the program’s budgets,
-vote outcomes, and vault permissions cannot be changed unilaterally. A backend can
-read and display state, but it can never bypass settlement.
+The current program differs materially from the agreed MVP:
 
-## How it works
+| Area | Current code | Required change |
+| --- | --- | --- |
+| Funding | Pledges stop at the goal; max 12 donors | Allow overfunding and independent donor ledgers without the cap |
+| Terms | Up to five milestones can be added during fundraising | Lock a complete 2-5 tranche, 100% schedule before any pledge |
+| Vote | 70% of raised weight; no enforced vote window | Strictly over 50%; seven-day rounds with a 30-day revision interval |
+| Settlement | A closed milestone claim can be recreated; split can be bypassed | Exactly-once release and mandatory configured recipients |
+| Bond | Reclaimable right after success; inaccessible after a failed goal | Mandatory 0.1 SOL deposit with complete return/forfeiture rules |
+| Refund | Individual claims plus `refund_all`; no cancellation | Remove batch refund, support funding-window cancellation and scalable claims |
+| Fee | No platform fee | Fixed 1% only on successful fundraising |
+| Web | Campaign pages are placeholders | Complete startup-specific creation, discovery, detail and account journeys |
 
-1. **Define terms.** The creator commits a goal, a deadline, a base budget, an
-   initial tranche, a creator bond, and a milestone schedule (each milestone stores
-   an amount, a deadline, and an evidence hash). No single milestone may exceed 50%
-   of the base budget; the schedule may not exceed it in total.
-2. **Collect deposits.** Backers pledge SOL into the campaign vault; each backer gets
-   an on-chain ledger entry that fixes their vote weight and refund entitlement.
-3. **Finalize fundraising.** After the deadline anyone can finalize. If the goal is
-   missed the campaign is `Refunded` and backers reclaim their exact pledge. If the
-   goal is met it is `Succeeded` and the initial tranche unlocks.
-4. **Deliver and prove.** The creator submits an evidence hash for the next
-   milestone. Backers vote with weight equal to their contribution.
-5. **Release, revise, or stop.** At least 70% approval releases the tranche. Below
-   70% on the first vote opens a revision round; a second failure marks the milestone
-   rejected and the campaign terminable. Termination freezes the remaining pool and
-   each backer claims a pro-rata share; a rejected milestone forfeits the creator's bond
-   into that pool.
-6. **Pay out.** Released tranches are pull-based claims. A release can be split across
-   up to five recipients by basis points, and can stream linearly over time so the
-   creator is paid against progress rather than all at once.
+Previously approved but unpaid claims also need to be reserved ahead of
+termination refunds. Vote and milestone deadlines, missing-creator behavior,
+and permissionless payout execution need on-chain enforcement. The
+[implementation plan](docs/IMPLEMENTATION_PLAN.md) lists adversarial tests
+for these cases.
+
+## Repository
 
 ```text
-creator ── create_staged_campaign(goal, deadline, base_budget, initial_tranche, bond)
-                 │
-backers ── pledge(amount) ─────────────► vault (PDA) + DonorLedger (PDA, vote weight)
-                 │
-anyone  ── finalize()  ──► Succeeded | Refunded
-                 │
-   Succeeded ──► release_initial() ──► creator
-                 │
-creator ── submit_evidence(i, hash) ── backers ── vote_milestone(i, yes/no)
-                 │
-anyone  ── finalize_vote(i) ──► Released (>=70%) | Revision (round 2) | Rejected
-                 │
-creator ── release_tranche(i, duration) ──► claim (split / streamed) ── withdraw_claim
-                 │
-anyone  ── terminate()  ──► freeze pool ── backers ── claim_termination_refund()
-creator ── claim_bond()  (when the campaign is not terminated)
+rust/       Anchor program, LiteSVM tests and current API documentation
+backend/    Node/Express indexer, REST API, SQLite and account services
+frontend/   Next.js scaffold and Solana client library
+docs/       Competition PDFs, protocol plan and reference material
+agents/     Product direction and development instructions
+mcp/        Local development and Solana documentation tooling
 ```
 
-### State model
+The [competition criteria](docs/CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf)
+(p. 2, section 2; p. 3, sections 5-6) require transaction rules in the
+on-chain program rather than in our backend, and ask whether authors can
+change the program after deployment. A fixed, disclosed fee does not grant
+custody or discretionary payout power, but the fee recipient and upgrade
+authority must be disclosed. The latest devnet deployment has not been
+confirmed for this checkout; the local smoke script exercises only a base
+campaign flow.
 
-- `CampaignStatus`: `Active → Succeeded | Refunded`.
-- `MilestoneStatus`: `Pending → Submitted → Released | Revision → Rejected`.
-- Independent `terminated` flag; a frozen `refund_pool` after termination.
-
-### Instruction set (all enforced on-chain)
-
-Base vault flow:
-
-| Instruction | Signer | Effect |
-| --- | --- | --- |
-| `create_campaign` | creator | Create campaign + vault PDAs; fix goal, deadline, description hash |
-| `pledge` | backer | Move SOL into the vault; create/update the donor ledger |
-| `finalize` | anyone | After the deadline, set `Succeeded` or `Refunded` |
-| `claim_success` | creator | Sweep the vault to the creator (only when `Succeeded`) |
-| `claim_refund` | backer | Refund that backer’s exact pledge (only when `Refunded`) |
-| `refund_all` | anyone | Repay every backer in one transaction and drain the vault |
-
-Staged (Bundle A) flow:
-
-| Instruction | Signer | Effect |
-| --- | --- | --- |
-| `create_staged_campaign` | creator | Goal, deadline, base budget, initial tranche, creator bond |
-| `add_milestone` | creator | Add a milestone (`amount`, `deadline`, `evidence_hash`), enforcing the 50%/budget caps |
-| `submit_evidence` | creator | Commit the evidence hash for a milestone and open voting |
-| `vote_milestone` | backer | Contribution-weighted approve/reject, one vote per backer per round |
-| `finalize_vote` | anyone | Apply the 70% threshold; release, revision round, or reject |
-| `release_initial` | creator | Unlock the initial tranche after success |
-| `set_split` | creator | Split a release across up to five recipients by bps |
-| `release_tranche` | creator | Mint a claim for a released milestone, optionally streaming over time |
-| `withdraw_claim` | anyone | Withdraw vested funds to the creator or the split recipients |
-| `terminate` | anyone* | Freeze the remaining pool; forfeit the bond if a milestone was rejected |
-| `claim_termination_refund` | backer | Pro-rata share of the frozen pool |
-| `claim_bond` | creator | Reclaim the bond when the campaign is not terminated |
-
-\* anyone once a milestone is rejected; otherwise the creator.
-
-### Accounts
-
-- `CampaignAccount` — `[b"campaign", creator, campaign_id]` (terms, raised, status,
-  budget/tranche/released/bond accounting, donor registry).
-- `DonorLedgerAccount` — `[b"donor", campaign, backer]` (amount, claimed flag).
-- `Vault` / `BondVault` — `[b"vault", campaign]` / `[b"bond", campaign]` (program-owned).
-- `MilestoneAccount` — `[b"milestone", campaign, index]`.
-- `VoteRecord` — `[b"vote", milestone, round, backer]` (one vote per round).
-- `SplitAccount` — `[b"split", campaign]` (recipients + basis points).
-- `ClaimAccount` — `[b"claim", campaign, index]` (vesting schedule for a release).
-
-## Trust boundary (what the program cannot do)
-
-Bestcrow removes the operator’s custody and settlement discretion. It does **not**
-judge whether a cause or product is worthy, verify anyone’s identity, prove that
-evidence is truthful, or guarantee delivery. Backer votes measure approval, not
-objective quality. Previously released tranches cannot be clawed back. The devnet
-deploy wallet holds upgrade authority until it is made final, and that power is
-disclosed rather than hidden. A real-money launch needs a legal/KYC layer and a
-published dispute policy; this project demonstrates the financial mechanics, not
-compliance.
-
-## Originality and precedent
-
-All-or-nothing crowdfunding (Kickstarter) protects backers only until the target is
-met; after that the creator receives the whole balance. Bestcrow applies enforceable
-rules *after* success and is honest that milestone crowdfunding is not new
-(Pledgecamp and others are close precedents). What this implementation contributes:
-
-- **Contribution-weighted backer approval with a revision round** and a permissionless
-  termination path — no administrator decides.
-- **Pro-rata refunds from a frozen pool**, with the creator’s **bond forfeited** on a
-  rejected milestone (skin in the game).
-- **Multi-payee splits and streamed releases**, so funds track progress instead of
-  being handed over at once.
-- A deterministic, tokenless conditional-vault design — no oracle, no token, no market.
-
----
-
-## Repository layout
-
-```text
-rust/                         Anchor program + tests
-  programs/charity-vault/     state, one module per instruction group, entrypoints
-    tests/flow.rs             LiteSVM end-to-end tests (base + staged flows)
-frontend/                     Next.js 16 app (@solana/kit, Wallet Standard)
-  app/                        campaign list, create, detail, how-it-works
-  app/lib/                    program client: PDAs, instructions, decoding, eligibility
-  scripts/devnet-smoke.mjs    devnet end-to-end smoke test (prints explorer links)
-backend/                      Node indexer + REST API (SQLite)
-compose.yaml                  one-command demo stack (web + API)
-docs/                         challenge PDFs and Solana reference material
-EXECUTION_PLAN.md             design plan, rubric mapping, trust model
-agents/                       project context and tooling notes
-```
-
-Stack: **Anchor 1.1.2 / Rust** on-chain, **Next.js 16 + `@solana/kit`** and Wallet
-Standard on the client, a **Node/SQLite** indexer/API, **LiteSVM** for tests.
-
-## Run it
-
-### One command (Docker)
+## Local commands
 
 ```bash
 docker compose up --build
 ```
 
-- Web app: http://localhost:3000
-- API health: http://localhost:4000/api/health
-
-The web app talks to the Solana program directly; the indexer/API serves fast
-listings and decoded events. Stop with `docker compose down`.
-
-### Program
+This starts the current web and API services, not a validated target-MVP
+demo. The frontend defaults to `http://localhost:3000`; API health is at
+`http://localhost:4000/api/health`.
 
 ```bash
 cd rust
-NO_DNA=1 anchor build --no-idl -- --arch v0        # --arch v0 is required on this toolchain
+NO_DNA=1 anchor build --no-idl -- --arch v0
 NO_DNA=1 cargo test --manifest-path programs/charity-vault/Cargo.toml
-NO_DNA=1 anchor idl build -p charity-vault -o target/idl/charity_vault.json -t target/types/charity_vault.ts
 ```
 
-### Frontend (without Docker)
+```bash
+cd backend
+npm install
+npm run typecheck
+npm test
+```
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local        # devnet RPC + program id
-npm run dev
+npm run typecheck
+npm test
 ```
 
-### Deploy
-
-```bash
-cd rust
-NO_DNA=1 anchor deploy --provider.cluster devnet -p charity-vault
-node ../frontend/scripts/devnet-smoke.mjs   # create -> pledge -> finalize -> refund
-```
-
-## Verification status
-
-| Piece | State |
-| --- | --- |
-| On-chain program (18 instructions, 6 account types + vault/bond PDAs) | Implemented; compiles to SBF |
-| LiteSVM end-to-end tests | **Passing** — base refund/success/refund-all and staged approve/release/stream, revision/terminate/pro-rata, split |
-| Frontend (list/create/detail, wallet, explorer links, eligibility) | Implemented; typecheck, unit tests, and production build pass |
-| Indexer/API (SQLite, decoded events) | Implemented; typecheck and tests pass |
-| One-command demo (`docker compose up --build`) | Both services build and run the base flow |
-| Devnet deployment | Pending: a funded devnet wallet/RPC is required to deploy the latest build (program ID `74GsU9x…`); the code and tests are complete |
-
-Program ID (intended devnet): `74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG`.
-
-Upgrade authority and the team's own contribution are documented so judges can see
-exactly where trust still lives.
-
-## How this maps to the judging criteria
-
-| Criterion (weight) | Evidence |
-| --- | --- |
-| Relevance to the challenge (30%) | A real intermediary — the crowdfunding operator’s custody, fee, and discretionary release — removed by a program-controlled vault, milestone rules, and backer votes enforced on-chain |
-| Completeness and functionality (25%) | Full lifecycle create → pledge → finalize → milestone vote → release → terminate → pro-rata refund, exercised by passing on-chain tests and a wired UI |
-| Idea and choice of problem (20%) | An explicitly named user, a concrete pain, and an honest statement of what the chain can and cannot prove |
-| Implementation potential (15%) | Modular Anchor program with fixed-size state, bounded accounts, typed client, indexer, and tests |
-| Originality (10%) | Contribution-weighted approval with revision and permissionless termination, creator bond, splits and streaming — a deterministic tokenless conditional vault |
-
-## The questions we expect, answered
-
-- **Where exactly does the intermediary disappear?** In the vault and the rules:
-  funds are held by a program-owned PDA, and only `release_initial`,
-  `release_tranche` (after a successful `finalize_vote`), `claim_refund`, or
-  `claim_termination_refund` can move them. No backend or admin can redirect escrow.
-- **What if a party disappears?** A missed goal is refundable by anyone; an accepted
-  tranche can be released and withdrawn later; a rejected milestone lets anyone
-  terminate and every backer claim their pro-rata share without the creator.
-- **Who has permissions?** The creator submits evidence and releases within the rules;
-  backers vote with their own weight; anyone can finalize and terminate; the deploy
-  wallet holds upgrade authority until final.
-- **Why blockchain and not a database?** The rule, not an operator, is the source of
-  truth; a database admin could edit state and control payouts.
-
-See [EXECUTION_PLAN.md](EXECUTION_PLAN.md) for the full trust model and the challenge
-PDFs under [docs/](docs/) for the authoritative requirements.
+These commands describe available checks. Passing results for the **target
+protocol** and a current devnet deployment must be recorded after code changes.
+Do not infer either from the presence of tests or from an older demo.

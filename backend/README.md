@@ -1,6 +1,13 @@
 # Bestcrow backend
 
-The backend has two sectors for the Charity Vault Solana program:
+Bestcrow's target product is startup crowdfunding with staged releases, not a
+charity campaign directory. This document describes the **current legacy API**.
+The target MVP rules below are requirements for the next implementation pass;
+they are not enforced by the current backend or deployed program.
+The [implementation plan](../docs/IMPLEMENTATION_PLAN.md) is the canonical
+source for the ordered program, backend, frontend, and verification work.
+
+The backend has two sectors for the currently named Charity Vault Solana program:
 
 - `chain`: campaign reads, metadata, indexing and unsigned instruction builders.
 - `accounts`: registration, sessions, verified Phantom links and SOL payment records.
@@ -94,6 +101,9 @@ Account, wallet and payment routes: **[Accounts API](docs/ACCOUNTS.md)**.
 | `GET` | `/api/instructions/claim-refund` | Build `claim_refund` (`donor`, `campaign`) |
 | `GET` | `/api/instructions/refund-all/:campaign` | Build `refund_all` using canonical on-chain donor order + `caller` |
 | `GET` | `/api/stream` | Server-Sent Events stream of indexer syncs |
+
+`refund-all` is a **legacy route to remove** after the program and clients switch
+to individual refunds. Do not build new flows around it.
 
 All amounts are lamports as decimal strings (`u64`); SOL equivalents are provided
 alongside as `*Sol` fields.
@@ -194,13 +204,52 @@ separate client; it does not write the token into browser storage.
 
 - The chain API retains the six existing base instruction builders. Rust staged
   funding and milestone instructions do not yet have backend builders.
-- Account endpoints and SDK are implemented. Frontend account forms and payment
-  intent integration must call the new SDK; the existing direct Solana path remains.
+- Account endpoints and SDK are implemented, but registration currently requires
+  email/password, while wallet login only works for a previously linked wallet.
+  Wallet-first account creation and the frontend session flow are target work.
 - Payments mean SOL pledges to campaigns. Email delivery, password reset and card
   processing are not implemented.
 - Off-chain metadata is only as trustworthy as the hash check: a `verified: true`
   record means the stored description matches the on-chain SHA-256 commitment.
-- The program caps a campaign at 12 donors, so `refund_all` fits in one legacy
-  transaction.
+- The current program caps a campaign at 12 donors to make `refund_all` fit one
+  legacy transaction. Both the cap and bulk refund are slated for removal.
 - Event reconstruction depends on RPC log retention (`SIGNATURE_SCAN_LIMIT`);
   account state is always re-synced in full each poll.
+
+## Target MVP (not implemented)
+
+- A creator publishes a startup campaign with a complete schedule of 2-5
+  milestones. Each allocation is at most 50% and the allocations total 100%.
+  The schedule and other pledged terms freeze when fundraising begins. The
+  fundraising window is between one week and six months. Contributions may
+  exceed the goal.
+- Success is decided after the fundraising deadline. Only a successful campaign
+  pays a 1% platform fee on the final amount raised; allocations are percentages
+  of the post-fee amount. An unsuccessful campaign pays no fee and each backer
+  may claim 100% of their own pledge. The on-chain vault, not an indexer total,
+  must enforce these balances. Refunds require separate user transactions (or
+  a permissionless helper submitting them one by one); they are not automatic.
+- Campaign creation locks a 0.1 SOL creator deposit distinct from pledges and
+  transaction/rent costs. Its release and forfeiture conditions must be
+  specified and enforced in the on-chain lifecycle before it is offered as
+  refundable; a successful fundraiser alone must not release it.
+- For each proof-gated milestone, voting lasts exactly seven days. Approval
+  requires `yes` weight strictly greater than 50% of all eligible pledged
+  weight, including abstentions in the denominator. Failure gives the creator
+  30 days to submit one revision and then seven days for the second vote.
+  No votes means failure. Timeouts and finalization must be callable by anyone.
+- Wallet proof should create or resume a backer account without email. Creators
+  can add an organization profile for presentation, with no identity verification,
+  platform approval, or platform signature required to create an on-chain campaign.
+  A "my contributions" view should reconcile linked wallets with indexed
+  pledges, claims, and refunds, including transactions made outside the API.
+- Campaign descriptions and milestone proofs need durable storage and integrity
+  checks against on-chain commitments. An indexer/API `verified` flag denotes
+  a hash match only, not a claim that a startup or its evidence is legitimate.
+  The frontend must fetch and check the stored content, not trust text embedded
+  in a shareable URL. Server-side reward fulfilment can follow after the core
+  escrow and account flow is complete.
+
+See [API.md](API.md) and [Accounts API](docs/ACCOUNTS.md) for the current routes and
+their planned migration. The staged program and fee/deposit accounting need
+adversarial tests before describing the target rules as deployed behavior.

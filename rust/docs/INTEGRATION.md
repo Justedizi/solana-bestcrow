@@ -102,6 +102,10 @@ Instrukcja nie zawiera blockhasha ani fee payera: te należą do transakcji.
 
 ## Przykład: zwykła zbiórka
 
+Ten tryb jest **legacy**. Docelowe MVP startupowe ma wyłącznie kampanie
+etapowe; poniższa tabela służy do integracji z obecnym programem, nie do
+projektowania nowej ścieżki produktu.
+
 | Krok | Wywołanie | Wynik |
 | --- | --- | --- |
 | 1 | Twórca: `create_campaign(1, 2_000_000_000, przyszły_deadline, hash)` | `Active`, cel 2 SOL |
@@ -187,3 +191,48 @@ Jeśli twórca wcześniej odebrał kaucję przez `claim_bond`, nie ma jej w tej 
 Testy działają w procesie przez LiteSVM, bez RPC, devnet i podpisywania
 transakcji publicznej sieci. Instrukcje uruchomienia są w [README](../README.md#budowanie-i-testowanie).
 Lista testów nie oznacza pełnego pokrycia ograniczeń opisanych w API.
+
+## Docelowy przebieg MVP: jeszcze niewdrożony
+
+Poniższa sekwencja opisuje wymagania dla nowego klienta i programu. Nie można
+jej wykonać przez aktualne instrukcje bez zmian w kodzie.
+
+1. Twórca przygotowuje kompletną kampanię startupową. Przed jej startem
+   zatwierdza termin końcowy za 7-183 dni, opis z weryfikowalnym hashem,
+   ewentualny split i 2-5 dodatnich transz łącznie z początkową. Każda transza stanowi
+   najwyżej 50%, razem dokładnie 100%. Twórca wpłaca osobną kaucję 0,1 SOL.
+   Po starcie warunki nie mogą się zmienić i nie jest potrzebna aprobata
+   platformy ani weryfikacja twórcy.
+2. Wspierający wpłacają także po przekroczeniu celu. W okresie zbiórki mogą
+   anulować własne wpłaty; po terminie końcowe wpłaty i wagi głosów są
+   zamrożone. Operacje wymagają podpisanych transakcji oraz opłat sieci.
+3. Po terminie dowolny caller finalizuje zbiórkę. Przy kwocie poniżej celu
+   każdy wspierający odbiera 100% własnej wpłaty; los oddzielnej kaucji
+   twórcy wymaga uprzednio ustalonej reguły;
+   prowizja wynosi zero. Przy sukcesie program jednorazowo pobiera 1%
+   **całej** kwoty brutto, także nadwyżki. Transze liczone są od 99% netto.
+   Przykład: cel 10 SOL, wpłaty 11 SOL, prowizja 0,11 SOL, do transz pozostaje
+   10,89 SOL. Udziały 20% / 40% / 40% dają 2,178 / 4,356 / 4,356 SOL.
+   Kaucja pozostaje osobno zablokowana.
+4. Pierwsza transza może zostać wypłacona zgodnie z warunkami. Twórca
+   przedstawia weryfikowalny dowód kolejnego etapu przed jego terminem.
+   Głosowanie trwa pełne 7 dni. „Tak” wygrywa wyłącznie z wagą większą niż
+   połowa **wszystkich** zamrożonych wpłat; zero głosów i równe 50%
+   oznaczają odmowę.
+5. Po pierwszej odmowie trwa pełne 30 dni na poprawę. Wcześniej zgłoszony
+   nowy dowód czeka do końca tego okna, potem otwiera się druga 7-dniowa
+   runda. Jeśli dowód nie wpłynął w terminie albo druga runda odrzuci etap,
+   każdy może uruchomić zakończenie i indywidualne proporcjonalne zwroty.
+6. Zatwierdzoną transzę może uruchomić dowolny caller. Każda może zostać
+   przyznana i rozliczona tylko raz, a zadeklarowany split jest obowiązkowy. Przy
+   zakończeniu wcześniejsze przyznane, lecz niewypłacone claimy mają
+   pierwszeństwo przed pulą zwrotów. Zwrot lub przepadek kaucji po
+   dowolnym wyniku musi wynikać z jawnych reguł ustalonych przed
+   implementacją; sam sukces zbiórki nie może jej odblokować.
+
+Żaden timeout nie wywołuje instrukcji samoczynnie. Po terminie musi ją wysłać
+portfel użytkownika albo bot; każdy taki krok powinien być możliwy bez zgody
+twórcy, jeżeli jego bezczynność mogłaby zablokować środki. Testy muszą objąć
+również próby podwójnej wypłaty, ominięcia splitu, zbyt wczesnego finału,
+braku głosów, spóźnionej poprawy, nadwyżki wpłat i przedwczesnego odbioru
+kaucji. Pełny przebieg trzeba później potwierdzić na devnecie.
