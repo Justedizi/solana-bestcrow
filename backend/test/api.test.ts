@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import type { Server } from 'node:http';
 import { type Address } from '@solana/kit';
-import { createServer } from '../src/api/server.js';
+import { BackendServer } from '../src/api/server.js';
+import { AccountRepository } from '../src/sectors/accounts/repository.js';
 import { Store } from '../src/db/index.js';
 import { sha256, toHex } from '../src/solana/program.js';
 import { CAMPAIGN_ACCOUNT_SIZE } from '../src/solana/program.js';
+import { createTestFetch } from './support/http.js';
 
 const CREATOR = '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG' as Address;
 const CAMPAIGN_ONE = 'So11111111111111111111111111111111111111112' as Address;
@@ -15,18 +16,19 @@ const DONOR_TWO = 'SysvarRent111111111111111111111111111111111' as Address;
 const DESCRIPTION = 'We are building a transparent community fund.';
 
 let store: Store;
-let server: Server;
 let base: string;
+let token: string;
+let testFetch: typeof fetch;
 
 async function get(path: string): Promise<{ status: number; body: any }> {
-  const response = await fetch(`${base}${path}`);
+  const response = await testFetch(`${base}${path}`);
   return { status: response.status, body: await response.json() };
 }
 
 async function put(path: string, body: unknown): Promise<{ status: number; body: any }> {
-  const response = await fetch(`${base}${path}`, {
+  const response = await testFetch(`${base}${path}`, {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
   return { status: response.status, body: await response.json() };
@@ -80,16 +82,21 @@ before(async () => {
     payload: JSON.stringify({ donor: DONOR, amount: '1000000000' }),
   });
 
-  const app = createServer(store);
-  server = app.listen(0, '127.0.0.1');
-  await new Promise<void>((resolve) => server.once('listening', () => resolve()));
-  const info = server.address();
-  if (!info || typeof info === 'string') throw new Error('no port');
-  base = `http://127.0.0.1:${info.port}`;
+  const backend = new BackendServer(store, { chain: {
+    readCampaignAccount: async (address) => address === CAMPAIGN_ONE ? {
+      address, creator: CREATOR, campaignId: 1n, goal: 10_000_000_000n,
+      deadline: 2_000_000_000n, descHash: sha256(DESCRIPTION), raised: 3_000_000_000n,
+      paid: false, status: 'refunded', donorCount: 2, donors: [DONOR, DONOR_TWO], bump: 254,
+    } : null,
+  } });
+  token = (await backend.accounts.auth.register({ email: 'creator@example.com', password: 'creator test password' })).token;
+  const user = backend.accounts.auth.authenticate(`Bearer ${token}`).user;
+  new AccountRepository(store.db).createWallet(user.id, CREATOR, Math.floor(Date.now() / 1000));
+  testFetch = createTestFetch(backend.app);
+  base = 'http://backend.test';
 });
 
-after(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+after(() => {
   store.close();
 });
 
@@ -203,10 +210,30 @@ test('GET /api/instructions/finalize builds an unsigned plan', async () => {
   assert.equal(body.dataHex, 'ab3dda387f730cd9');
 });
 
-test('GET /api/instructions/refund-all enumerates indexed donors', async () => {
+test('GET /api/instructions/refund-all follows the canonical on-chain donor order', async () => {
   const { status, body } = await get(`/api/instructions/refund-all/${CAMPAIGN_ONE}?caller=${DONOR}`);
   assert.equal(status, 200);
   assert.equal(body.accounts.length, 4 + 4);
+  assert.equal(body.accounts[0].writable, true);
+  assert.equal(body.accounts[5].pubkey, DONOR);
+  assert.equal(body.accounts[7].pubkey, DONOR_TWO);
+});
+
+test('PUT metadata requires a session with the verified creator wallet', async () => {
+  const response = await testFetch(`${base}/api/campaigns/${CAMPAIGN_ONE}/metadata`, {
+    method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Untrusted' }),
+  });
+  assert.equal(response.status, 401);
+  const registration = await testFetch(`${base}/api/accounts/auth/register`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'stranger@example.com', password: 'stranger test password' }),
+  });
+  const stranger = await registration.json() as { token: string };
+  const forbidden = await testFetch(`${base}/api/campaigns/${CAMPAIGN_ONE}/metadata`, {
+    method: 'PUT', headers: { 'content-type': 'application/json', authorization: `Bearer ${stranger.token}` },
+    body: JSON.stringify({ title: 'Untrusted' }),
+  });
+  assert.equal(forbidden.status, 403);
 });
 
 test('unknown route returns 404 JSON', async () => {

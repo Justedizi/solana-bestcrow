@@ -20,13 +20,24 @@ verification. Do not add a `verified` badge, an admin acceptance flow,
 or a platform co-signature in the MVP. Wallet addresses are public;
 participants are pseudonymous rather than anonymous.
 
+## Visual reference
+
+The visual design of the Bestcrow frontend should be inspired by
+[Colosseum](https://colosseum.com/). Use it as a reference for the overall
+quality, visual hierarchy, typography, spacing, navigation, and presentation
+of startup projects. Adapt those ideas to Bestcrow's campaign discovery,
+funding, milestone voting, and refund workflows. Do not copy Colosseum's
+branding, assets, text, or page layouts literally. Clear financial states,
+accessible controls, and legible mobile screens take priority over decorative
+similarity.
+
 ## Navigation and main journeys
 
 | View | Primary task | Essential content |
 | --- | --- | --- |
 | Discover | Find a startup project | Search by title, creator or address; funding state, goal, raised amount, deadline and phase filters |
 | Campaign | Decide whether to contribute or vote | Canonical verified terms, evidence, 2-5 tranche timeline, progress, current voting window, released/reserved/refundable amounts |
-| Create | Prepare and seal complete terms | Draft then lock goal, 7-183 day funding window, 2-5 shares totaling 100%, <=50% each, 0.1 SOL deposit |
+| Create | Prepare and seal complete terms | Draft then lock goal, 7-183 day funding window, 2-5 shares totaling 100%, <=50% each, no creator deposit |
 | My support | Track and act on contributions | Confirmed deposits, vote eligibility, cancellable funding pledge, claims, refunds and rewards |
 | Creator profile | Show who receives funds | Organization details and linked wallet, without platform verification |
 | Rewards | Redeem a promised perk | Server-side entitlement after a verified contribution; distinguish entitlement, claim and actual delivery |
@@ -53,7 +64,7 @@ Validate at field level before the first transaction:
 - an initial tranche counted among those shares;
 - linked creator wallet, public metadata, canonical hash and all required
   stage periods;
-- enough SOL for the separate 0.1 SOL deposit plus rent/network fees.
+- enough SOL for the separate no creator deposit plus rent/network fees.
 
 Do not allow funded terms to be edited through the UI. A cancelled or
 failed signature returns to a draft state with explicit error text.
@@ -108,7 +119,7 @@ The UI must distinguish current from planned features until rollout.
 - [ ] A backer can browse, connect, contribute, inspect a confirmed
   pledge and find it under `My support`.
 - [ ] A creator can complete a 2-5 tranche draft, review the 1% success
-  fee and 0.1 SOL deposit, then seal terms before any pledge.
+  fee and no creator deposit, then seal terms before any pledge.
 - [ ] A vote shows >50% of all final contributions and the 7/30/7-day
   timeline; ineligible or early actions do not appear executable.
 - [ ] Success, failed goal, missed evidence, failed second vote,

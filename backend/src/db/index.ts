@@ -317,6 +317,13 @@ export class Store {
     ).all(campaign) as unknown as DonorRow[];
   }
 
+  listDonorsByWallets(wallets: string[]): DonorRow[] {
+    if (wallets.length === 0) return [];
+    const placeholders = wallets.map(() => '?').join(',');
+    return this.stmt(`SELECT * FROM donors WHERE donor IN (${placeholders})
+      ORDER BY updated_at DESC, campaign, donor`).all(...wallets) as unknown as DonorRow[];
+  }
+
   listEvents(campaign: string, limit: number, offset: number): EventRow[] {
     return this.stmt(
       'SELECT * FROM events WHERE campaign = ? ORDER BY slot DESC, id DESC LIMIT ? OFFSET ?',

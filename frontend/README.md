@@ -1,11 +1,16 @@
 # Bestcrow frontend
 
-The current frontend is a minimal Tailwind CSS scaffold. Routes are present as
-React placeholders; wallet, campaign, and Solana interactions are not wired up.
-Bestcrow's target product is startup crowdfunding with staged releases. The
-requirements below describe planned MVP behavior, not existing UI.
+The frontend now contains the responsive Bestcrow discovery, campaign detail,
+creation, explanation and “My support” views. Wallet transaction builders and
+the final V2 API remain gated on the verified V2 deployment; the UI labels
+those states instead of presenting legacy actions as final MVP behavior.
 Follow the [ordered implementation plan](../docs/IMPLEMENTATION_PLAN.md)
 for the financial rules and backend dependencies.
+
+For the visual layer, use [Colosseum](https://colosseum.com/) as the design
+inspiration. The [frontend sketch](STOCKGATE_FRONTEND_SKETCH.md#visual-reference)
+explains how to adapt that reference to Bestcrow without copying its branding
+or weakening the clarity of campaign and transaction states.
 
 Reusable Solana helpers remain in `app/lib/` for the next implementation pass.
 They retry transient Solana HTTP 429 responses and show a dedicated-provider
@@ -25,7 +30,7 @@ npm run dev
 2. The creation form collects and validates the entire campaign before the
    first transaction: startup description and durable metadata, goal, 7-day to
    six-month fundraising window, and 2-5 milestone allocations each at most
-   50% and totaling exactly 100%. Show the 0.1 SOL creator deposit, network
+   50% and totaling exactly 100%. Show the no creator deposit, network
    costs, and the 1% success-only platform fee separately. Freeze campaign
    terms when fundraising starts; there is no post-start editing or adding
    milestones. The deposit's exact return conditions/timing remain to be

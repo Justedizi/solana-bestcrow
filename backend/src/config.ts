@@ -42,10 +42,18 @@ export const config = {
   rpcUrl: str('SOLANA_RPC_URL', 'https://api.devnet.solana.com'),
   programId: str('CHARITY_VAULT_PROGRAM_ID', '74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG'),
   cluster: str('CLUSTER', 'devnet'),
+  rpcRetryAttempts: Math.max(0, Math.min(8, int('RPC_RETRY_ATTEMPTS', 3))),
+  rpcRetryBaseDelayMs: Math.max(0, Math.min(10_000, int('RPC_RETRY_BASE_DELAY_MS', 250))),
   dbPath: (() => {
     const raw = str('DB_PATH', './data/bestcrow.db');
     return raw === ':memory:' ? raw : resolve(here, '..', raw);
   })(),
+  accounts: {
+    origin: str('APP_ORIGIN', 'http://localhost:3000'),
+    sessionTtlSeconds: Math.max(60, int('SESSION_TTL_SECONDS', 86_400)),
+    challengeTtlSeconds: Math.max(30, Math.min(600, int('WALLET_CHALLENGE_TTL_SECONDS', 300))),
+    authAttemptsPerMinute: Math.max(1, int('AUTH_ATTEMPTS_PER_MINUTE', 20)),
+  },
   indexer: {
     enabled: bool('INDEXER_ENABLED', true),
     pollIntervalMs: int('POLL_INTERVAL_MS', 15_000),

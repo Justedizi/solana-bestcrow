@@ -3,12 +3,17 @@
 Folder `rust` zawiera program crowdfundingowy `charity_vault` napisany w Rust
 z użyciem **Anchor 1.1.2**. Docelowy produkt służy zbiórkom startupowym.
 Obecny program obsługuje wpłaty w SOL, zbiórki typu „wszystko albo nic” oraz
-zbiórki etapowe z głosowaniem wspierających, kaucją i wypłatami w czasie.
+zbiórki etapowe z głosowaniem wspierających i wypłatami w czasie.
 
 Opis API i kont poniżej dotyczy **obecnej implementacji** w
 `programs/charity-vault/src`, a nie wdrożonych już zasad docelowych.
 API programu to instrukcje transakcji Solany, nie endpointy HTTP.
 Reguły docelowe są wypisane osobno; wymagają zmian kodu, testów i wdrożenia.
+Dodano wstępną implementację finansowania V2 w
+[`funding_v2.rs`](programs/charity-vault/src/funding_v2.rs): osobne PDA,
+zamknięcie harmonogramu, nadwyżki, anulowanie, prowizję i refund po porażce
+celu. Przeszły testy jednostkowe; instrukcje nie zostały jeszcze sprawdzone
+w SBF/LiteSVM ani wdrożone. Stan `Completed` i pełna ścieżka zakończenia wymagają P2.
 Kanoniczna kolejność prac i otwarte decyzje znajdują się w
 [planie implementacji](../docs/IMPLEMENTATION_PLAN.md).
 
@@ -59,7 +64,7 @@ etap, `release_tranche` tworzy prawo do wypłaty, a `withdraw_claim` wypłaca SO
 - Po sukcesie pobierana jest raz prowizja platformy 1% **całej zebranej
   kwoty**. Procenty transz odnoszą się do pozostałych 99%. Po porażce celu
   prowizja wynosi zero, a każdemu wspierającemu przysługuje zwrot 100% wpłaty.
-- Każda nowa kampania MVP jest etapowa i wymaga kaucji twórcy 0,1 SOL,
+- Każda nowa kampania MVP jest etapowa i nie wymaga kaucji twórcy,
   osobnej od wpłat oraz kosztów rent i transakcji. Warunki i czas jej
   zwrotu lub przepadku po nieosiągnięciu celu, sukcesie, dobrowolnym
   zakończeniu i definitywnej porażce wymagają decyzji produktowej przed

@@ -6,8 +6,8 @@ funkcje już działające. Punktem odniesienia dla inwentaryzacji jest commit
 
 ## Źródła i granica zaufania
 
-- Najnowsze decyzje użytkownika: startupy/prototypy, SOL, 2-5 transz, 1%
-  prowizji po sukcesie oraz 0,1 SOL kaucji twórcy. Starsze propozycje 70%,
+- Najnowsze decyzje użytkownika: startupy/prototypy, SOL, 2-5 transz i 1%
+  prowizji po sukcesie. Kaucja twórcy została usunięta z MVP; starsze propozycje 70%,
   pięciu obowiązkowych etapów, tygodnia poprawy i braku prowizji są nieaktualne.
 - [Kryteria konkursu](CRITERIA%20Finance%20Without%20Intermediaries%20PLENG.pdf),
   s. 2, sekcja 2: reguły mają być zapisane w programie i wykonywane jednakowo,
@@ -54,10 +54,8 @@ funkcje już działające. Punktem odniesienia dla inwentaryzacji jest commit
    Każda transza to jej udział w `distributable`; ostatnia otrzymuje resztę
    zaokrągleń, aby suma wypłat nie przekroczyła dostępnych środków. Prowizja
    nie daje platformie uprawnienia do zatwierdzania kampanii lub wypłat.
-7. **Kaucja twórcy:** każda nowa kampania MVP deponuje oddzielnie 0,1 SOL.
-   Nie jest to wpłata backera, nie powiększa wagi głosów ani budżetu transz.
-   Pozostaje zablokowana do rozstrzygnięcia. Warunki i termin jej zwrotu oraz
-   przepadku muszą zostać zatwierdzone w tabeli poniżej przed wdrożeniem.
+7. **Brak kaucji w MVP:** kampania nie wymaga depozytu twórcy. Ochrona przed
+   botami i antyspam są poza zakresem MVP i trafiają do P6.
 8. **Głosowanie:** tylko backerzy z ostateczną dodatnią wpłatą; jeden głos na
    etap i rundę, waga = kwota wpłaty. Po przedstawieniu dowodu rozpoczyna się
    sztywne 7 dni. Wynik TAK zachodzi tylko wtedy, gdy `yes_weight * 2 > raised`,
@@ -79,7 +77,7 @@ funkcje już działające. Punktem odniesienia dla inwentaryzacji jest commit
     zakończeniu, nie wchodzą do puli refundacyjnej.
 11. **Zakończenie:** po drugiej porażce, porzuceniu lub dobrowolnym poddaniu
     się twórca może dopłacić SOL do skarbca przed zamrożeniem puli. Zwrot
-    pozostałych, niezarezerwowanych środków i ewentualnie utraconej kaucji
+    pozostałych, niezarezerwowanych środków i pozostałe środki
     jest proporcjonalny do zamrożonej wagi wpłat. Wcześniej wypłaconych
     transz program nie może odebrać.
 12. **Dostępność po zniknięciu strony:** reguły finansowe i konto kampanii
@@ -89,14 +87,16 @@ funkcje już działające. Punktem odniesienia dla inwentaryzacji jest commit
     Przed deklaracją niezmienności ujawnić i sprawdzić uprawnienia do
     aktualizacji programu.
 
-### Otwarte decyzje ekonomiczne (blokada przed kodem rozliczeń)
+### Status decyzji P0
 
-| Temat | Ustalono | Do zatwierdzenia i przetestowania |
+Szczegółowe decyzje i format V2 są zapisane w [docs/PROTOCOL_V2.md](PROTOCOL_V2.md).
+
+| Punkt | Status | Wynik |
 | --- | --- | --- |
-| Prowizja | 1% od faktycznej sumy, tylko po sukcesie | Stały adres odbiorcy i zaokrąglenie do lamportów; powyższa specyfikacja proponuje `floor` |
-| Kaucja | 0,1 SOL od każdej kampanii etapowej | Kiedy oddać po porażce celu i po pełnym sukcesie; czy i kiedy przepada przy dobrowolnym przerwaniu, braku dowodu i drugiej porażce; okres oczekiwania po zakończeniu |
-| Terminy | 7-183 dni zbiórki, 7 dni głosowania, 30 dni poprawy, 7 dni drugiego głosowania | Czy kampania ma dodatkowy termin na pierwszy dowód; powyższy plan wymaga go i konsekwencji jego przekroczenia |
-| Nagrody | Dane prywatne poza łańcuchem | Reguła zwrotu/rezerwacji nagród przy zakończeniu, zanim obieca się dostawy fizyczne |
+| P0.1 | ✅ Zakończone projektowo | 1% `floor`, brak kaucji, 183 dni, 30 dni na pierwszy dowód, reguły nieaktywnych głosujących i rounding są zamknięte. |
+| P0.1-D | ⚠ Problem wdrożeniowy | Repozytorium nie zawiera konkretnego publicznego klucza treasury. Trzeba go podać przed inicjalizacją `ProtocolConfigV2` i deploymentem. |
+| P0.2 | ✅ Zakończone projektowo | Nowe konta/PDA/IDL V2, wersjonowanie i migracja V1 są opisane w `PROTOCOL_V2.md`. |
+| P0.3 | ✅ Zakończone projektowo | RFC 8785 JCS, manifest warunków, manifest dowodu, Arweave URI i hash są opisane w `PROTOCOL_V2.md`. |
 
 ## Stan kodu w chwili napisania
 
@@ -126,25 +126,29 @@ Każda faza kończy się testami i przeglądem zmian, zanim kolejna zacznie
 polegać na jej kontrakcie. Nie implementować zależności backendu lub UI
 od starego układu kont jako docelowego API.
 
-### 0. Domknięcie protokołu i migracja
+### 0. Domknięcie protokołu i migracja — wykonane
 
-- [x] **P0.1** Zatwierdzić otwarte decyzje ekonomiczne z tabeli, adres skarbca
-  prowizji, znaczenie pół roku i termin pierwszego dowodu; opisać zasady
-  zaokrąglania, nieaktywnych głosujących i los niewydanej nadwyżki.
-  → [DECISIONS.md](DECISIONS.md) **D-003** (prowizja 1% floor, kaucja, terminy,
-  zaokrąglanie ostatniej transzy, mianownik = zamrożone `raised`).
-- [x] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji dla
-  istniejących kampanii. Nie interpretować starych kont według nowego układu.
-  → **D-004**: nowy program `bestcrow`, nowe seeds; stary `charity-vault`
-  pozostaje referencją; brak migracji kont devnet.
-- [x] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, stabilny publiczny
-  magazyn oraz weryfikację hasha i dostępności bez naszej strony.
-  → **D-005**: kanoniczny JSON + `terms_hash`/`content_uri`; frontend nie
-  ufa parametrowi URL.
+- [x] **P0.1** Zatwierdzić decyzje ekonomiczne. Prowizja, terminy, rounding,
+  nieaktywni głosujący i nadwyżka są opisane w [DECISIONS.md](DECISIONS.md)
+  (D-003). Adres treasury pozostaje problemem wdrożeniowym (P0.1-D).
+  Alternatywnie (praca V2 na `charity-vault`): brak kaucji twórcy, szczegóły w
+  [PROTOCOL_V2.md](PROTOCOL_V2.md).
+- [x] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji.
+  → **D-004** (program `bestcrow`, nowe seeds; brak migracji kont devnet).
+  → Równolegle: V2 w `charity-vault` (`funding_v2.rs`) z migracją V1→V2.
+- [x] **P0.3** Kanoniczny JSON warunków i dowodów + publiczny storage +
+  weryfikacja hasha. → **D-005**; szczegóły V2: [PROTOCOL_V2.md](PROTOCOL_V2.md).
+
+> **Dwie ścieżki w toku.** (A) Nowy program `bestcrow` (faza 0-1,
+> `bestcrow/src/...`). (B) V2 wewnątrz `charity-vault` (`funding_v2.rs`).
+> Obie realizują ten sam docelowy protokół; decyzja o wyborze jednej ścieżki
+> przed wdrożeniem (patrz D-006).
 
 ### 1. Program Solana: finansowanie i rachunkowość
 
-- [x] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
+Status wykonania: ścieżka A (`bestcrow`) kompiluje się i buduje SBF; ścieżka B
+(`funding_v2.rs`) ma 8 testów bibliotecznych (`cargo test --lib`). Żadna nie ma
+pełnych testów transakcyjnych ani deploymentu.
   po dodaniu 2-5 etapów; nie przyjmować wpłat przed zamknięciem warunków.
   Odrzucać zmiany po starcie, sumy != 10000 bps, etap 0 lub >5000 bps oraz
   czas zbiórki poza 7-183 dniami. Ustalić startową transzę jako etap 0.
@@ -159,11 +163,15 @@ od starego układu kont jako docelowego API.
 - [x] **P1.4** W finalizacji zamrozić `raised`, przy porażce odblokować 100%
   wpłat bez prowizji; przy sukcesie pobrać prowizję dokładnie raz, rozliczyć kwotę
   netto i procentowe transze z resztą zaokrągleń w ostatniej.
-  → `finalize_funding` + `allocate_tranche_amounts` (reszta w ostatniej transzy).
-- [x] **P1.5** Wymagać 0,1 SOL kaucji w oddzielnym skarbcu i wdrożyć
-  zatwierdzone reguły zwrotu/przepadku, także gdy cel nie zostanie osiągnięty.
-  → bond ładowany w `seal_terms`; `claim_bond` zwraca po `Failed`/`Completed`.
-- [x] **P1.6** Po zakończeniu wszystkich głosowań w udanej kampanii umożliwić
+- [ ] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
+  po dodaniu 2-5 transz; nie przyjmować wpłat przed zamknięciem warunków.
+- [ ] **P1.2** Usunąć limit `pledge <= goal`; dodać `cancel_pledge` w oknie.
+- [ ] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; per-backer + permissionless `refund_for`.
+- [ ] **P1.4** Finalizacja: freeze `raised`; porażka = 100% bez prowizji; sukces = 1% raz + transze z resztą.
+- [x] **P1.5** **Decyzja MVP: brak kaucji twórcy.** (Wariant A z 0,1 SOL kaucją
+  jest udokumentowany w D-003, ale bieżący MVP go nie wymaga; ochrona
+  antyspamowa/bot odroczona do P6.)
+- [ ] **P1.6** Zamknięcie ledgerów backerów i zwrot rent po zakończeniu głosowań.
   zamknięcie ledgerów backerów i zwrot rent właściwym płatnikom, bez utraty
   danych potrzebnych do rozliczenia kampanii.
   → `close_backer` (rent do zarejestrowanego backera). Wypłata transz/`Completed`
@@ -174,6 +182,21 @@ od starego układu kont jako docelowego API.
 > wypłata transz, zakończenie) pozostaje do zrobienia — patrz niżej.
 
 ### 2. Program Solana: etapy, wypłaty i testy nadużyć
+
+Status wykonania P2: dodano moduł [`lifecycle_v2.rs`](../rust/programs/charity-vault/src/lifecycle_v2.rs)
+z terminami dowodu i głosowania, rundą poprawy, obowiązkowym splitem,
+jednorazowym claimem, rezerwą zatwierdzonych transz, termination i refundem
+proporcjonalnym. Osiem testów bibliotecznych V2 przechodzi. Pełny test
+LiteSVM i build SBF są zablokowane błędami środowiska linkera/platform-tools,
+więc nie oznaczam P2 jako zweryfikowanego end-to-end.
+
+| Zadanie | Wynik tego etapu | Problem do pełnego zamknięcia |
+| --- | --- | --- |
+| P2.1 | Okna dowodu i głosowania są zapisane w `TrancheV2`; głos przed/po oknie i finalizacja przed terminem są odrzucane; PDA głosu blokuje duplikat | Brak testu LiteSVM na transakcjach z Clock z powodu niedostępnego SBF |
+| P2.2 | Próg to `yes_weight * 2 > final_raised`; 50% i brak głosów przegrywają; pierwsza porażka otwiera 30 dni, potem 7 dni drugiej rundy; timeout dowodu jest permissionless | Brak end-to-end potwierdzenia drugiej rundy i zniknięcia twórcy |
+| P2.3 | Claim ma trwałe `claim_created` i `settled`; split i odbiorcy są walidowani z konta etapu; `reserved` chroni zatwierdzone środki przy termination; dowolny caller uruchamia wypłatę | Brak testu kont i transferów; status `Completed` wymaga pełnego przebiegu wszystkich transz |
+| P2.4 | Creator może dobrowolnie dopłacić SOL; termination wylicza pulę po odjęciu rent/rezerw; refund jest indywidualny | Brak testu LiteSVM |
+| P2.5 | Dodano testy granic terminów, progu 50%, drugiej porażki, splitu i rounding; 8 testów bibliotecznych przechodzi | Pełna macierz LiteSVM (2/5 etapów, 13+ backerów, duplikaty i rzeczywiste PDA) czeka na naprawę toolchainu |
 
 - [ ] **P2.1** Egzekwować kolejność i termin pierwszego dowodu; po dowodzie
   otwierać głosowanie na 7 dni. Odrzucać głos za wcześnie lub za późno,
@@ -192,53 +215,101 @@ od starego układu kont jako docelowego API.
 - [ ] **P2.5** Testy LiteSVM: 2 i 5 etapów, suma 99/100/101%, etap 50/51%,
   7/183 dni, >goal, fee 0/1%, cancel przed/po, 13+ backerów, 0 głosów,
   dokładnie 50%, terminy obu ankiet, brak dowodu, zniknięcie twórcy,
-  podwójne roszczenie, obejście podziału, przedwczesny zwrot kaucji,
-  kaucja po nieosiągnięciu celu, zarezerwowane roszczenie kontra zwrot,
+  podwójne roszczenie, obejście podziału, przedwczesny zwrot środków,
+   zarezerwowane roszczenie kontra zwrot,
   duplikaty zwrotów, zaokrąglanie lamportów oraz zamknięcie ledgerów i zwrot
   rent po zakończeniu głosowań w udanej kampanii.
 
 ### 3. Backend po stabilizacji IDL
 
+Status wykonania P3 (aktualizacja 2026-10-04): wallet-first, profil organizacji
+twórcy i „moje wpłaty” z P3.2/P3.3 wykonano w warstwie backendu/SDK z testem
+wallet-first. Test suite nie może zostać uruchomiony w
+tym środowisku, ponieważ zależności npm (`tsc`) nie są zainstalowane. P3.1
+pozostaje częściowy i blokowany przez brak zweryfikowanego deploymentu/IDL V2;
+nie zmieniono indeksatora na niepotwierdzony układ kont. P3.4 odroczony jako
+opcjonalny. P3.5 częściowy: dodano test wallet-first (podpis, replay, izolacja
+tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego toolchainu.
+
+| Zadanie | Stan | Dowód / blokada |
+|---|---|---|
+| P3.1 | Częściowo, blokada | Legacy indexer pozostaje wersjonowany; V2 codec wymaga IDL i deploymentu |
+| P3.2 | Zaimplementowane | Wallet-first, powiązany portfel oraz profil organizacji bez bramki weryfikacyjnej |
+| P3.3 | Zaimplementowane | `GET /api/accounts/me/contributions`, agregacja wszystkich powiązanych portfeli i status kampanii |
+| P3.4 | Przeniesione do P6 | Nagrody serwerowe mają osobny moduł; nie są częścią kontraktu V2 |
+| P3.5 | Częściowo | Test replay i podpisu dodany; npm test zablokowany brakiem `tsc` |
+
 - [ ] **P3.1** Zaktualizować dekodery, indeks, bazę, SDK i REST pod nową
-  wersję kont: wpłaty ponad cel, etapy, głosy, prowizję, kaucję, roszczenia,
+  wersję kont: wpłaty ponad cel, etapy, głosy, prowizję, roszczenia,
   zwroty i metadane. Usunąć endpoint i budowniczy `refund_all` oraz zależność
   od 12 backerów. Odbudować stan po zamknięciu ledgerów; nie liczyć starych
   rekordów jako aktywnych. Uodpornić indeks zdarzeń na przerwy i ograniczony skan.
-- [ ] **P3.2** Dodać konto backera tworzone po uwierzytelnieniu portfelem
+- [x] **P3.2** Dodać konto backera tworzone po uwierzytelnieniu portfelem
   przez podpisanie wyzwania, zachowując jeden portfel i jedną tożsamość bez hasła.
   Profil twórcy zawiera dane organizacji i powiązany portfel, lecz program
   nie wymaga weryfikacji, zatwierdzenia ani podpisu administratora.
-- [ ] **P3.3** Udostępnić „moje wpłaty”, potwierdzone wpłaty i ich statusy,
+- [x] **P3.3** Udostępnić „moje wpłaty”, potwierdzone wpłaty i ich statusy,
   historię zwrotów oraz publiczne metadane ze sprawdzonym hashem.
   Backend nie może nadpisać kanonicznych warunków finansowych.
-- [ ] **P3.4** Jeśli nagrody wejdą do MVP: serwerowe poziomy nagród i uprawnienia,
-  prywatny odbiór klucza lub formularz wysyłki, autoryzacja portfelem i
-  idempotentne wydanie po weryfikacji wpłaty. Nie obiecywać fizycznej
-  dostawy jako gwarancji on-chain.
+- [→ P6] **P3.4** Nagrody wyłączone z MVP. Zadania systemu nagród przeniesiono
+  do P6.
 - [ ] **P3.5** Testy uwierzytelniania, podpisów, powtórzeń, dostępu do cudzych
   nagród, API prowizji i zwrotów, nowego IDL oraz synchronizacji po zamknięciu kont.
 
 ### 4. Frontend po stabilizacji API
 
+Status wykonania P4 (2026-10-04): wdrożono warstwę wizualną inspirowaną
+Colosseum, strony start/discover/how-it-works, widok kampanii, walidację
+formularza 2–5 etapów oraz widok „My support”. Integracja formularza z pełnym
+V2 API i transakcjami etapowymi pozostaje zablokowana do czasu zweryfikowanego
+IDL/deploymentu; `npm run typecheck` nie uruchamia się bez lokalnego `tsc`.
+
+| Zadanie | Stan | Problem |
+|---|---|---|
+| P4.0 | Wykonane | Kierunek wizualny i responsywna hierarchia gotowe |
+| P4.1 | Częściowo | Główne widoki gotowe; pełne dane z API i wallet-first session czekają na stabilny backend |
+| P4.2 | Częściowo | Walidacja 2–5 etapów, 7–183 dni, sumy i limitów gotowa; wysyłka nadal korzysta z legacy create instruction |
+| P4.3 | Częściowo | Widok pokazuje etapy, fee, hash i stany; odczyt on-chain wymaga V2 indexera |
+| P4.4 | Problem | Brak zweryfikowanych V2 instruction builders/deploymentu |
+| P4.5 | Wykonane | Teksty mówią o startupach, 1% fee i braku kaucji i braku moderacyjnej bramki |
+
+- [x] **P4.0** Przygotować kierunek wizualny inspirowany
+  [Colosseum](https://colosseum.com/): hierarchię informacji, typografię,
+  rytm i prezentację projektów dostosować do Bestcrow. Nie kopiować
+  identyfikacji, zasobów ani układów dosłownie; czytelność finansów i
+  dostępność kontrolek pozostają nadrzędne.
 - [ ] **P4.1** Zastąpić szkielety pełnym, responsywnym UI dla startupów:
   połączenie portfela i automatyczne logowanie backera, profil twórcy, lista
   zbiórek, szczegóły, „moje wpłaty”, głosowanie, wypłaty i zwroty.
 - [ ] **P4.2** Kreator kampanii waliduje wszystkie pola przed pierwszą
-  transakcją, pokazuje procenty, kwotę netto, prowizję, kaucję i rent oraz
+  transakcją, pokazuje procenty, kwotę netto, prowizję i rent oraz
   odróżnia szkic od nieedytowalnej kampanii po starcie. Obsługuje częściowe
   błędy wielotransakcyjnego szkicu i wznowienie bez ukrywania ryzyka.
 - [ ] **P4.3** Strona kampanii pokazuje kanoniczny, zweryfikowany opis i
   dostępny dowód, próg >50% wszystkich wpłat, oba zegary, etapy w
-  kolejności, stan kaucji, prowizję i pulę refundacyjną. Formularze są dostępne
+  kolejności, prowizję i pulę refundacyjną. Formularze są dostępne
   z klawiatury, mają błędy przy polach i pełne stany oczekiwania.
 - [ ] **P4.4** Poprawić budowanie transakcji podziału i wypłaty,
   permissionless `finalize`/`release`/`refund_for` oraz linki do potwierdzonych
   transakcji. Nie pokazywać przycisku, którego obecny kontrakt nie obsłuży.
-- [ ] **P4.5** Przepisać teksty interfejsu: startupy/prototypy, 1% jawnej prowizji
-  tylko po sukcesie, 0,1 SOL kaucji, brak weryfikacji twórców i ograniczenia
+- [x] **P4.5** Przepisać teksty interfejsu: startupy/prototypy, 1% jawnej prowizji
+  tylko po sukcesie, brak kaucji, brak weryfikacji twórców i ograniczenia
   gwarancji. Zniknięcie strony nie może blokować praw on-chain.
 
 ### 5. Integracja, bezpieczeństwo i prezentacja
+
+Status P5 (2026-10-04): P5.1 częściowo potwierdzone — Rust V2 przechodzi
+`cargo test --lib --offline` (8/8), a `git diff --check` przechodzi. Backend i
+frontend nie mają zainstalowanych zależności (`tsc` oraz `@solana/kit`), więc
+ich testy/build są zablokowane. P5.2–P5.4 pozostają otwarte do czasu instalacji
+Anchor CLI, deploymentu V2 i uzyskania podpisów transakcji.
+
+| Zadanie | Stan | Dowód / problem |
+|---|---|---|
+| P5.1 | Częściowo | Rust 8/8; backend/frontend blocked by missing npm dependencies |
+| P5.2 | Nie wykonano | Anchor CLI nie jest zainstalowane, brak deploymentu V2 |
+| P5.3 | Częściowo | Dodano [DEVNET_DEPLOYMENT.md](DEVNET_DEPLOYMENT.md); brak realnego treasury i podpisów |
+| P5.4 | Nie wykonano | Wymaga działającego Devnet V2 i smoke test signatures |
 
 - [ ] **P5.1** Uruchomić testy Rust, backendu i frontendu, build, lokalną
   symulację obu rund z przesunięciem Clock oraz testy e2e z co najmniej
@@ -255,6 +326,50 @@ od starego układu kont jako docelowego API.
 - [ ] **P5.4** Przygotować demonstrację na wcześniej utworzonych kontach dla
   długich terminów i osobną potwierdzoną transakcję na żywo. Zweryfikować
   zgodność z kryteriami PDF przed ogłoszeniem gotowości.
+
+### 6. Nagrody serwerowe — ważne po MVP
+
+Status P6 (2026-10-04): dodano backendowy model ofert i claimów nagród oraz
+kwalifikację na podstawie potwierdzonego ledgera w SQLite. Endpointy działają
+bez V2 deploymentu na lokalnym backendzie. Szyfrowanie storage, jednorazowe
+linki i pełny formularz frontendowy pozostają do dokończenia.
+
+| Zadanie | Stan | Dowód / problem |
+|---|---|---|
+| P6.1 | Częściowo wykonane | Typy `message`, `file`, `code`, `physical` i oferta nagrody |
+| P6.2 | Częściowo wykonane | Tabele `reward_offers` i `reward_claims`; prywatne dane dostawy wymagają szyfrowania |
+| P6.3 | Wykonane lokalnie | Claim sprawdza linked wallet, donor ledger, próg, limit i unikalność |
+| P6.4 | Częściowo wykonane | Delivery JSON i status pending; szyfrowanie/operacyjny panel wysyłek pozostaje |
+| P6.5 | Częściowo wykonane | Content wydawany przy claimie; secure one-time download URL wymaga storage |
+
+P6 obejmuje nagrody przechowywane i realizowane przez backend. Wpłata i status
+finansowy pochodzą z indeksu on-chain; backend nie może sam przyznać prawa do
+nagrody.
+
+- [ ] **P6.1** Dodać typy nagród: wiadomość, plik do pobrania, kod/klucz oraz
+  przedmiot fizyczny.
+- [ ] **P6.2** Dodać tabele `reward_offers`, `reward_claims` i prywatne
+  `fulfilment_requests`; kod/plik przechowywać zaszyfrowany lub w prywatnym
+  storage, a do bazy zapisywać tylko referencję i hash.
+- [ ] **P6.3** Udostępnić endpoint claimu po podpisie walleta i potwierdzeniu
+  kwalifikującej wpłaty; wymusić unikalność `(reward_id, wallet)` oraz limit
+  ilości w jednej transakcji.
+- [ ] **P6.4** Dodać formularz dostawy dla fizycznych nagród, szyfrowanie danych,
+  ograniczenie dostępu operatora i statusy `pending/fulfilled/cancelled`.
+- [ ] **P6.5** Dodać bezpieczne wydawanie plików jednorazowym URL-em oraz
+  idempotentne wydawanie kodów. Dane adresowe nigdy nie trafiają on-chain.
+
+### 7. Przeniesione zadania późniejsze
+
+Status P7: zadania zostały przeniesione z wcześniejszej sekcji „Po MVP” i są
+świadomie odłożone. Nie blokują podstawowego MVP.
+
+- [ ] **P7.1** Ochrona przed botami, rate limiting i CAPTCHA.
+- [ ] **P7.2** Automatyczny worker przypominający o permissionless instrukcjach.
+- [ ] **P7.3** Pełny katalog nagród, eksport wysyłek, integracje storage i
+  powiadomienia.
+- [ ] **P7.4** USDC, NFT, Arweave dla nagród, kolejne rundy finansowania oraz
+  zaawansowane narzędzia podziału.
 
 ## Po MVP, jeśli zostanie czas
 
