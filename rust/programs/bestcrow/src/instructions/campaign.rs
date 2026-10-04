@@ -117,6 +117,7 @@ pub fn add_tranche(
     tranche.yes_weight = 0;
     tranche.no_weight = 0;
     tranche.amount = 0;
+    tranche.claim_withdrawn = false;
     tranche.bump = ctx.bumps.tranche;
 
     campaign.tranche_count = campaign

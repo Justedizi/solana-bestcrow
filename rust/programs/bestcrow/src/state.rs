@@ -99,6 +99,8 @@ pub struct Tranche {
     pub no_weight: u64,
     /// Tranche amount reserved for claim once approved: floor(distributable*share).
     pub amount: u64,
+    /// Set true when the approved amount has been paid; blocks double withdrawal.
+    pub claim_withdrawn: bool,
     /// Reserved rent returned when the tranche is finalized.
     pub bump: u8,
 }

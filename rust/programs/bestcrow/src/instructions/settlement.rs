@@ -55,8 +55,19 @@ pub fn finalize_funding<'info>(ctx: Context<'info, FinalizeFunding<'info>>) -> R
                 .ok_or(BestcrowError::ArithmeticOverflow)?;
         }
 
-        // Reserve each tranche's share of distributable (last gets remainder).
+        // Reserve each tranche's share of distributable (last gets remainder)
+        // and open the first tranche's work window.
         allocate_tranche_amounts(ctx.remaining_accounts, campaign.distributable)?;
+        campaign.reserved = campaign.distributable;
+        if let Some(first) = ctx.remaining_accounts.first() {
+            let mut tranche = Account::<Tranche>::try_from(first)?;
+            tranche.evidence_deadline = now
+                .checked_add(tranche.work_period)
+                .ok_or(BestcrowError::ArithmeticOverflow)?;
+            tranche.status = TrancheStatus::PendingEvidence;
+            tranche.round = 1;
+            tranche.exit(&crate::ID)?;
+        }
     } else {
         campaign.fee = 0;
         campaign.distributable = 0;
