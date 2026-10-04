@@ -17,6 +17,11 @@ test('HTTP routes + typed SDK register, link Phantom proof, wallet login and log
     const session = await client.accounts.register({ email: 'phantom@example.com', password: 'phantom test password', displayName: 'Test' });
     const account = client.withSession(session.token);
     assert.equal((await account.accounts.getMe()).user.id, session.user.id);
+    const profile = await account.accounts.updateCreatorProfile({
+      organizationName: 'Test Startup', organizationDescription: 'Prototype', website: 'https://example.com',
+    });
+    assert.equal(profile.organizationName, 'Test Startup');
+    assert.equal((await account.accounts.getCreatorProfile())?.website, 'https://example.com');
     const challenge = await account.accounts.createWalletChallenge({ address, purpose: 'link' });
     const signatureBase64 = sign(null, Buffer.from(challenge.message), pair.privateKey).toString('base64');
     const wallet = await account.accounts.linkWallet({ challengeId: challenge.id, signatureBase64 });

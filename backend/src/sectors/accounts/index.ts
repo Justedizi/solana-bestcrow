@@ -9,6 +9,7 @@ import { AuthEndpoints, AuthService } from './auth/index.js';
 import { WalletEndpoints, WalletService } from './wallets/index.js';
 import { PaymentEndpoints, PaymentRepository, PaymentService, RpcPaymentVerifier } from './payments/index.js';
 import type { PaymentVerifier } from './payments/types.js';
+import { z } from 'zod';
 
 export interface AccountSectorOptions {
   origin?: string;
@@ -55,6 +56,14 @@ export class AccountsSector {
     this.router.get('/me/contributions', this.requireSession, wrap(async (_req, res) => {
       const wallets = this.wallets.list(res.locals.user.id as string);
       res.json(chain.campaigns.contributions(wallets.map((wallet) => wallet.address)));
+    }));
+    this.router.get('/me/profile', this.requireSession, wrap(async (_req, res) => {
+      res.json(repository.getCreatorProfile(res.locals.user.id as string));
+    }));
+    this.router.put('/me/profile', this.requireSession, wrap(async (req, res) => {
+      const body = z.object({ organizationName: z.string().trim().min(1).max(160).nullable(),
+        organizationDescription: z.string().max(4_000).nullable(), website: z.string().url().max(500).nullable() }).parse(req.body);
+      res.json(repository.upsertCreatorProfile({ userId: res.locals.user.id as string, ...body }, seconds()));
     }));
   }
 

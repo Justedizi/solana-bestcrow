@@ -30,6 +30,12 @@ export class AccountsService {
   public listContributions(): Promise<import('./types.js').ContributionDto[]> {
     return this.requester.request(accountsEndpoints.contributions);
   }
+  public getCreatorProfile(): Promise<import('./types.js').CreatorProfileDto | null> {
+    return this.requester.request(accountsEndpoints.profile);
+  }
+  public updateCreatorProfile(body: Omit<import('./types.js').CreatorProfileDto, 'userId' | 'updatedAt'>): Promise<import('./types.js').CreatorProfileDto> {
+    return this.requester.request(accountsEndpoints.updateProfile, { params: { body } });
+  }
 
   public createWalletChallenge(body: WalletChallengeInput): Promise<WalletChallengeDto> {
     return this.requester.request(accountsEndpoints.challenge, { params: { body } });

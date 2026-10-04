@@ -51,6 +51,13 @@ export class AccountRepository {
         used_at INTEGER
       );
       CREATE INDEX IF NOT EXISTS idx_challenges_expiry ON wallet_challenges(expires_at);
+      CREATE TABLE IF NOT EXISTS creator_profiles (
+        user_id TEXT PRIMARY KEY REFERENCES account_users(id),
+        organization_name TEXT,
+        organization_description TEXT,
+        website TEXT,
+        updated_at INTEGER NOT NULL
+      );
     `);
   }
 
@@ -124,6 +131,20 @@ export class AccountRepository {
     this.db.prepare(`INSERT INTO wallet_challenges (id,user_id,address,purpose,message,expires_at)
       VALUES (?,?,?,?,?,?)`).run(challenge.id, challenge.userId, challenge.address,
       challenge.purpose, challenge.message, challenge.expiresAt);
+  }
+
+  public getCreatorProfile(userId: string): import('./types.js').CreatorProfileDto | null {
+    return (this.db.prepare(`SELECT user_id AS userId, organization_name AS organizationName,
+      organization_description AS organizationDescription, website, updated_at AS updatedAt
+      FROM creator_profiles WHERE user_id=?`).get(userId) as import('./types.js').CreatorProfileDto | undefined) ?? null;
+  }
+
+  public upsertCreatorProfile(input: Omit<import('./types.js').CreatorProfileDto, 'updatedAt'>, now: number): import('./types.js').CreatorProfileDto {
+    this.db.prepare(`INSERT INTO creator_profiles (user_id,organization_name,organization_description,website,updated_at)
+      VALUES (?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET organization_name=excluded.organization_name,
+      organization_description=excluded.organization_description, website=excluded.website, updated_at=excluded.updated_at`)
+      .run(input.userId, input.organizationName, input.organizationDescription, input.website, now);
+    return { ...input, updatedAt: now };
   }
 
   public getChallenge(id: string): ChallengeRecord | undefined {

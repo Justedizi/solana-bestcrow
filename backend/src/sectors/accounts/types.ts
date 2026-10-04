@@ -10,4 +10,12 @@ export interface AccountDto {
   wallets: WalletDto[];
 }
 
+export interface CreatorProfileDto {
+  userId: string;
+  organizationName: string | null;
+  organizationDescription: string | null;
+  website: string | null;
+  updatedAt: number;
+}
+
 export type { ContributionDto };
