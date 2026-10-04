@@ -252,3 +252,44 @@ aside h2 { font: 700 35px Manrope; letter-spacing: -2px; }
   .manifesto h2 { font-size: 23px; }
   footer .shell { flex-direction: column; gap: 10px; }
 }
+
+/* Bundle A: staged funding */
+.milestone { border-top: 1px solid var(--line); padding: 16px 0; }
+.milestone-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.milestone-actions input { flex: 1 1 200px; border: 1px solid var(--line); background: #fafbf7; border-radius: 6px; padding: 10px; }
+.milestone-actions .button { margin-top: 0; }
+.staged-toggle { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 13px; font-weight: 700; }
+.staged-toggle input { width: auto; }
+.staged-fields { display: grid; gap: 10px; margin-top: 12px; }
+
+/* Campaign content: prominent description + milestone cards */
+.about { margin-top: 20px; }
+.about-text { color: #3f574c; font-size: 15px; line-height: 1.75; white-space: pre-wrap; margin: 10px 0 0; }
+.hash-line { margin-top: 12px; }
+code { font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--mint); color: var(--deep); padding: 2px 6px; border-radius: 4px; }
+
+.card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.badge { background: var(--mint); color: #39704b; border-radius: 20px; padding: 5px 10px; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+.badge.plain { background: #eef1ea; color: #6a7a6c; }
+.badge.warn { background: #fbe6de; color: #b1533a; }
+
+.milestone-head { display: flex; align-items: center; gap: 12px; }
+.milestone-index { flex: 0 0 30px; height: 30px; width: 30px; border-radius: 50%; background: var(--deep); color: #fff; display: grid; place-items: center; font: 700 13px Manrope; }
+.milestone-title { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.milestone-title b { font: 700 15px Manrope; }
+.vote-bar { height: 6px; background: #e7ede6; border-radius: 20px; overflow: hidden; margin: 12px 0 8px; }
+.vote-bar i { display: block; height: 100%; background: #7eb99a; border-radius: 20px; }
+.status-released { background: #dcefe1; color: #2f7a4a; }
+.status-submitted { background: #fdf0d6; color: #9a6b1a; }
+.status-revision { background: #fde3d8; color: #a8502f; }
+.status-rejected { background: #f7dcdc; color: #a63a3a; }
+
+/* Discover controls + custom duration */
+.discover-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 26px; }
+.discover-controls input[type="search"] { flex: 1 1 240px; border: 1px solid var(--line); background: #fafbf7; border-radius: 6px; padding: 12px 14px; outline-color: var(--coral); }
+.discover-controls .durations { flex: 0 1 auto; }
+.discover-controls .durations button { flex: 0 0 auto; padding: 10px 14px; }
+.custom-duration { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.custom-duration input { width: 90px; border: 1px solid var(--line); background: #fafbf7; border-radius: 6px; padding: 10px; }
+.custom-duration select { border: 1px solid var(--line); background: #fafbf7; border-radius: 6px; padding: 10px; }
+.custom-duration .outline { padding: 10px 16px; }
