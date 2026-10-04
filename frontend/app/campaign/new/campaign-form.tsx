@@ -11,6 +11,7 @@ export default function CampaignForm() {
   const connected = useConnectedWallet(client);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stageCount, setStageCount] = useState(2);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,6 +25,7 @@ export default function CampaignForm() {
     const goalText = String(values.get('goal') ?? '').trim();
     const deadlineText = String(values.get('deadline') ?? '');
     const description = String(values.get('description') ?? '');
+    const percentages = Array.from({ length: stageCount }, (_, index) => Number(values.get(`stage-${index}`) ?? 0));
 
     setBusy(true);
     setStatus('');
@@ -35,6 +37,11 @@ export default function CampaignForm() {
       if (!Number.isFinite(deadlineMs)) throw new Error('Choose a deadline date and time.');
       const deadline = Math.floor(deadlineMs / 1000);
       if (deadline <= Math.floor(Date.now() / 1000)) throw new Error('Deadline must be in the future.');
+      const days = (deadline - Math.floor(Date.now() / 1000)) / 86_400;
+      if (days < 7 || days > 183) throw new Error('Funding must last between 7 and 183 days.');
+      if (percentages.some((share) => !Number.isInteger(share) || share <= 0 || share > 50) || percentages.reduce((a, b) => a + b, 0) !== 100) {
+        throw new Error('Milestone shares must be positive, at most 50% each, and add up to 100%.');
+      }
 
       const creator = address(connected.account.address);
       const { campaign, ix } = await createCampaignIx(creator, campaignId, goal, deadline, await digest(description));
@@ -53,7 +60,7 @@ export default function CampaignForm() {
     <div className="max-w-xl space-y-6">
       <div>
         <h1 id="new-campaign-title" className="text-2xl font-medium">Create campaign</h1>
-        <p className="mt-2 text-sm text-slate-600">Create a campaign on Devnet.</p>
+        <p className="mt-2 text-sm text-slate-600">Startup campaigns use 2–5 fixed milestones. Terms lock before the first contribution.</p>
       </div>
 
       <form className="space-y-4" onSubmit={submit}>
@@ -61,6 +68,7 @@ export default function CampaignForm() {
           Campaign ID
           <input className="mt-1 block w-full border border-slate-300 px-3 py-2" name="campaignId" inputMode="numeric" placeholder="173861" required />
         </label>
+        <fieldset className="rounded-xl border border-slate-200 p-4"><legend className="px-1 text-sm font-semibold">Milestone allocation</legend><label className="mt-2 block text-sm">Number of milestones<select className="mt-1 block w-full border border-slate-300 px-3 py-2" value={stageCount} onChange={(event) => setStageCount(Number(event.target.value))}>{[2,3,4,5].map((count) => <option key={count} value={count}>{count}</option>)}</select></label><div className="mt-3 grid gap-3 sm:grid-cols-2">{Array.from({ length: stageCount }, (_, index) => <label key={index} className="text-sm">Milestone {index + 1} (%)<input className="mt-1 block w-full border border-slate-300 px-3 py-2" name={`stage-${index}`} type="number" min="1" max="50" defaultValue={index === 0 ? Math.floor(100 / stageCount) + (100 % stageCount) : Math.floor(100 / stageCount)} required /></label>)}</div><p className="mt-2 text-xs text-slate-500">Each share is capped at 50%; total must equal 100%. Creator bond: 0.1 SOL · success fee: 1%.</p></fieldset>
         <label className="block text-sm">
           Goal (SOL)
           <input className="mt-1 block w-full border border-slate-300 px-3 py-2" name="goal" inputMode="decimal" placeholder="1" required />

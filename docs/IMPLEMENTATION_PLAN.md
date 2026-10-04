@@ -256,7 +256,22 @@ tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego tool
 
 ### 4. Frontend po stabilizacji API
 
-- [ ] **P4.0** Przygotować kierunek wizualny inspirowany
+Status wykonania P4 (2026-10-04): wdrożono warstwę wizualną inspirowaną
+Colosseum, strony start/discover/how-it-works, widok kampanii, walidację
+formularza 2–5 etapów oraz widok „My support”. Integracja formularza z pełnym
+V2 API i transakcjami etapowymi pozostaje zablokowana do czasu zweryfikowanego
+IDL/deploymentu; `npm run typecheck` nie uruchamia się bez lokalnego `tsc`.
+
+| Zadanie | Stan | Problem |
+|---|---|---|
+| P4.0 | Wykonane | Kierunek wizualny i responsywna hierarchia gotowe |
+| P4.1 | Częściowo | Główne widoki gotowe; pełne dane z API i wallet-first session czekają na stabilny backend |
+| P4.2 | Częściowo | Walidacja 2–5 etapów, 7–183 dni, sumy i limitów gotowa; wysyłka nadal korzysta z legacy create instruction |
+| P4.3 | Częściowo | Widok pokazuje etapy, fee, hash i stany; odczyt on-chain wymaga V2 indexera |
+| P4.4 | Problem | Brak zweryfikowanych V2 instruction builders/deploymentu |
+| P4.5 | Wykonane | Teksty mówią o startupach, 1% fee, kaucji 0,1 SOL i braku moderacyjnej bramki |
+
+- [x] **P4.0** Przygotować kierunek wizualny inspirowany
   [Colosseum](https://colosseum.com/): hierarchię informacji, typografię,
   rytm i prezentację projektów dostosować do Bestcrow. Nie kopiować
   identyfikacji, zasobów ani układów dosłownie; czytelność finansów i
@@ -275,7 +290,7 @@ tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego tool
 - [ ] **P4.4** Poprawić budowanie transakcji podziału i wypłaty,
   permissionless `finalize`/`release`/`refund_for` oraz linki do potwierdzonych
   transakcji. Nie pokazywać przycisku, którego obecny kontrakt nie obsłuży.
-- [ ] **P4.5** Przepisać teksty interfejsu: startupy/prototypy, 1% jawnej prowizji
+- [x] **P4.5** Przepisać teksty interfejsu: startupy/prototypy, 1% jawnej prowizji
   tylko po sukcesie, 0,1 SOL kaucji, brak weryfikacji twórców i ograniczenia
   gwarancji. Zniknięcie strony nie może blokować praw on-chain.
 

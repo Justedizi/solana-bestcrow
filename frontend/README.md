@@ -1,9 +1,9 @@
 # Bestcrow frontend
 
-The current frontend is a minimal Tailwind CSS scaffold. Routes are present as
-React placeholders; wallet, campaign, and Solana interactions are not wired up.
-Bestcrow's target product is startup crowdfunding with staged releases. The
-requirements below describe planned MVP behavior, not existing UI.
+The frontend now contains the responsive Bestcrow discovery, campaign detail,
+creation, explanation and “My support” views. Wallet transaction builders and
+the final V2 API remain gated on the verified V2 deployment; the UI labels
+those states instead of presenting legacy actions as final MVP behavior.
 Follow the [ordered implementation plan](../docs/IMPLEMENTATION_PLAN.md)
 for the financial rules and backend dependencies.
 
