@@ -68,4 +68,13 @@ export class AccountsService {
   public confirmPayment(id: string, signature: string): Promise<PaymentDto> {
     return this.requester.request(accountsEndpoints.confirmPayment, { params: { path: { id }, body: { signature } } });
   }
+  public listRewards(campaign: string): Promise<import('./types.js').RewardOfferDto[]> {
+    return this.requester.request(accountsEndpoints.rewards, { params: { path: { campaign } } });
+  }
+  public listRewardClaims(): Promise<import('./types.js').RewardClaimDto[]> {
+    return this.requester.request(accountsEndpoints.claims);
+  }
+  public claimReward(id: string, delivery?: unknown): Promise<import('./types.js').RewardClaimDto> {
+    return this.requester.request(accountsEndpoints.claimReward, { params: { path: { id }, body: { delivery } } });
+  }
 }

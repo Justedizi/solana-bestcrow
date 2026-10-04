@@ -11,6 +11,7 @@ export type {
   ContributionDto,
   CreatorProfileDto,
 } from '../../sectors/accounts/types.js';
+export type { RewardOfferDto, RewardClaimDto } from '../../sectors/accounts/rewards/types.js';
 export type {
   PaymentDto,
   CreatePaymentInput,

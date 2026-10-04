@@ -8,6 +8,7 @@ import { AccountRepository } from './repository.js';
 import { AuthEndpoints, AuthService } from './auth/index.js';
 import { WalletEndpoints, WalletService } from './wallets/index.js';
 import { PaymentEndpoints, PaymentRepository, PaymentService, RpcPaymentVerifier } from './payments/index.js';
+import { RewardEndpoints, RewardRepository, RewardService } from './rewards/index.js';
 import type { PaymentVerifier } from './payments/types.js';
 import { z } from 'zod';
 
@@ -50,6 +51,7 @@ export class AccountsSector {
     this.router.use('/auth', new AuthEndpoints(this.auth, this.wallets, this.requireSession, limiter).router);
     this.router.use('/wallets', new WalletEndpoints(this.wallets, this.auth, this.requireSession, limiter).router);
     this.router.use('/payments', new PaymentEndpoints(this.payments, this.requireSession).router);
+    this.router.use('/rewards', new RewardEndpoints(new RewardService(new RewardRepository(store.db), store), this.wallets, this.requireSession).router);
     this.router.get('/me', this.requireSession, wrap(async (_req, res) => {
       res.json({ user: res.locals.user, wallets: this.wallets.list(res.locals.user.id as string) });
     }));

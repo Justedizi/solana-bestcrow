@@ -209,8 +209,8 @@ więc nie oznaczam P2 jako zweryfikowanego end-to-end.
 - [ ] **P2.5** Testy LiteSVM: 2 i 5 etapów, suma 99/100/101%, etap 50/51%,
   7/183 dni, >goal, fee 0/1%, cancel przed/po, 13+ backerów, 0 głosów,
   dokładnie 50%, terminy obu ankiet, brak dowodu, zniknięcie twórcy,
-  podwójne roszczenie, obejście podziału, przedwczesny zwrot kaucji,
-  kaucja po nieosiągnięciu celu, zarezerwowane roszczenie kontra zwrot,
+  podwójne roszczenie, obejście podziału, przedwczesny zwrot środków,
+   zarezerwowane roszczenie kontra zwrot,
   duplikaty zwrotów, zaokrąglanie lamportów oraz zamknięcie ledgerów i zwrot
   rent po zakończeniu głosowań w udanej kampanii.
 
@@ -230,7 +230,7 @@ tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego tool
 | P3.1 | Częściowo, blokada | Legacy indexer pozostaje wersjonowany; V2 codec wymaga IDL i deploymentu |
 | P3.2 | Zaimplementowane | Wallet-first, powiązany portfel oraz profil organizacji bez bramki weryfikacyjnej |
 | P3.3 | Zaimplementowane | `GET /api/accounts/me/contributions`, agregacja wszystkich powiązanych portfeli i status kampanii |
-| P3.4 | Odroczone | Nagrody pozostają metadanymi; brak inwentaryzacji/claimów w MVP |
+| P3.4 | Przeniesione do P6 | Nagrody serwerowe mają osobny moduł; nie są częścią kontraktu V2 |
 | P3.5 | Częściowo | Test replay i podpisu dodany; npm test zablokowany brakiem `tsc` |
 
 - [ ] **P3.1** Zaktualizować dekodery, indeks, bazę, SDK i REST pod nową
@@ -323,6 +323,19 @@ Anchor CLI, deploymentu V2 i uzyskania podpisów transakcji.
 
 ### 6. Nagrody serwerowe — ważne po MVP
 
+Status P6 (2026-10-04): dodano backendowy model ofert i claimów nagród oraz
+kwalifikację na podstawie potwierdzonego ledgera w SQLite. Endpointy działają
+bez V2 deploymentu na lokalnym backendzie. Szyfrowanie storage, jednorazowe
+linki i pełny formularz frontendowy pozostają do dokończenia.
+
+| Zadanie | Stan | Dowód / problem |
+|---|---|---|
+| P6.1 | Częściowo wykonane | Typy `message`, `file`, `code`, `physical` i oferta nagrody |
+| P6.2 | Częściowo wykonane | Tabele `reward_offers` i `reward_claims`; prywatne dane dostawy wymagają szyfrowania |
+| P6.3 | Wykonane lokalnie | Claim sprawdza linked wallet, donor ledger, próg, limit i unikalność |
+| P6.4 | Częściowo wykonane | Delivery JSON i status pending; szyfrowanie/operacyjny panel wysyłek pozostaje |
+| P6.5 | Częściowo wykonane | Content wydawany przy claimie; secure one-time download URL wymaga storage |
+
 P6 obejmuje nagrody przechowywane i realizowane przez backend. Wpłata i status
 finansowy pochodzą z indeksu on-chain; backend nie może sam przyznać prawa do
 nagrody.
@@ -341,6 +354,9 @@ nagrody.
   idempotentne wydawanie kodów. Dane adresowe nigdy nie trafiają on-chain.
 
 ### 7. Przeniesione zadania późniejsze
+
+Status P7: zadania zostały przeniesione z wcześniejszej sekcji „Po MVP” i są
+świadomie odłożone. Nie blokują podstawowego MVP.
 
 - [ ] **P7.1** Ochrona przed botami, rate limiting i CAPTCHA.
 - [ ] **P7.2** Automatyczny worker przypominający o permissionless instrukcjach.

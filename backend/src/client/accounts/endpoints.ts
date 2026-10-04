@@ -12,7 +12,10 @@ import type {
   WalletChallengeInput,
   WalletDto,
   WalletProofInput,
+  ContributionDto,
+  CreatorProfileDto,
 } from './types.js';
+import type { RewardClaimDto, RewardOfferDto } from './types.js';
 
 type Empty = Record<string, never>;
 type PaymentPath = { path: { id: string } };
@@ -34,6 +37,9 @@ export interface AccountsEndpoints {
   payments: EndpointDefinition<Empty, PaymentDto[]>;
   payment: EndpointDefinition<PaymentPath, PaymentDto>;
   confirmPayment: EndpointDefinition<PaymentPath & { body: ConfirmPaymentInput }, PaymentDto>;
+  rewards: EndpointDefinition<{ path: { campaign: string } }, RewardOfferDto[]>;
+  claims: EndpointDefinition<Empty, RewardClaimDto[]>;
+  claimReward: EndpointDefinition<{ path: { id: string }; body: { delivery?: unknown } }, RewardClaimDto>;
 }
 
 export const accountsEndpoints: AccountsEndpoints = {
@@ -53,4 +59,7 @@ export const accountsEndpoints: AccountsEndpoints = {
   payments: { path: 'api/accounts/payments', method: 'GET', auth: 'required' },
   payment: { path: 'api/accounts/payments/:id', method: 'GET', auth: 'required' },
   confirmPayment: { path: 'api/accounts/payments/:id/confirm', method: 'POST', auth: 'required' },
+  rewards: { path: 'api/accounts/rewards/campaigns/:campaign/rewards', method: 'GET', auth: 'public' },
+  claims: { path: 'api/accounts/rewards/me/reward-claims', method: 'GET', auth: 'required' },
+  claimReward: { path: 'api/accounts/rewards/:id/claim', method: 'POST', auth: 'required' },
 };
