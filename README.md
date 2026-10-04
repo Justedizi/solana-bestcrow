@@ -41,6 +41,9 @@ before the listed payout and voting defects are fixed and tested.
 
 The full protocol decisions, open questions and chronological task list are in
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+The frontend's visual direction takes inspiration from
+[Colosseum](https://colosseum.com/); see the
+[frontend design brief](frontend/STOCKGATE_FRONTEND_SKETCH.md#visual-reference).
 
 ## Current repository state
 

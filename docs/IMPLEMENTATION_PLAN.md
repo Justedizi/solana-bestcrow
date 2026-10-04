@@ -202,6 +202,11 @@ od starego układu kont jako docelowego API.
 
 ### 4. Frontend po stabilizacji API
 
+- [ ] **P4.0** Przygotować kierunek wizualny inspirowany
+  [Colosseum](https://colosseum.com/): hierarchię informacji, typografię,
+  rytm i prezentację projektów dostosować do Bestcrow. Nie kopiować
+  identyfikacji, zasobów ani układów dosłownie; czytelność finansów i
+  dostępność kontrolek pozostają nadrzędne.
 - [ ] **P4.1** Zastąpić szkielety pełnym, responsywnym UI dla startupów:
   połączenie portfela i automatyczne logowanie backera, profil twórcy, lista
   zbiórek, szczegóły, „moje wpłaty”, głosowanie, wypłaty i zwroty.
