@@ -68,4 +68,16 @@ pub enum CharityVaultError {
     NoBond,
     #[msg("Staged campaigns release funds through milestones")]
     StagedCampaignUsesMilestones,
+    #[msg("Only the deployed program upgrade authority can initialize config")]
+    UnauthorizedConfig,
+    #[msg("Invalid goal, duration, allocation, recipients, or public terms")]
+    InvalidTerms,
+    #[msg("Campaign is in the wrong state")]
+    InvalidState,
+    #[msg("Funding window is closed or finalization is too early")]
+    InvalidTime,
+    #[msg("Arithmetic overflow")]
+    Overflow,
+    #[msg("Insufficient campaign funds")]
+    InsufficientFunds,
 }

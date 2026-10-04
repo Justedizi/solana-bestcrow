@@ -1,0 +1,25 @@
+{
+  "name": "bestcrow-anchor-ops",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:scripts": "tsx --test scripts/*.test.ts",
+    "devnet:init-config": "tsx scripts/initialize-protocol-config-v2.ts",
+    "devnet:smoke": "tsx scripts/devnet-v2-smoke.ts"
+  },
+  "dependencies": {
+    "@anchor-lang/core": "1.1.2"
+  },
+  "overrides": {
+    "@anchor-lang/borsh": "1.1.2",
+    "@anchor-lang/errors": "1.1.2",
+    "toml": "5.0.0",
+    "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

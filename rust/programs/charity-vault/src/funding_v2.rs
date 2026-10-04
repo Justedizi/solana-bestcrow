@@ -1,5 +1,7 @@
 use anchor_lang::{prelude::*, system_program};
 
+pub use crate::error::CharityVaultError as FundingErrorV2;
+
 pub const CONFIG_SEED: &[u8] = b"config-v2";
 pub const CAMPAIGN_SEED: &[u8] = b"campaign-v2";
 pub const TRANCHE_SEED: &[u8] = b"tranche-v2";
@@ -93,22 +95,6 @@ pub struct BackerLedgerV2 {
     pub backer: Pubkey,
     pub amount: u64,
     pub bump: u8,
-}
-
-#[error_code]
-pub enum FundingErrorV2 {
-    #[msg("Only the deployed program upgrade authority can initialize config")]
-    UnauthorizedConfig,
-    #[msg("Invalid goal, duration, allocation, recipients, or public terms")]
-    InvalidTerms,
-    #[msg("Campaign is in the wrong state")]
-    InvalidState,
-    #[msg("Funding window is closed or finalization is too early")]
-    InvalidTime,
-    #[msg("Arithmetic overflow")]
-    Overflow,
-    #[msg("Insufficient campaign funds")]
-    InsufficientFunds,
 }
 
 #[derive(Accounts)]

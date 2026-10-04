@@ -1,5 +1,9 @@
 # Bestcrow
 
+Instrukcja bezpiecznego buildu, wdrożenia V2 na Devnet, inicjalizacji
+`ProtocolConfigV2`, smoke testu i opcjonalnej blokady upgrade authority:
+[docs/DEVNET_DEPLOYMENT.md](docs/DEVNET_DEPLOYMENT.md).
+
 Bestcrow is a proposed Solana escrow for **startup and prototype crowdfunding**.
 Backers fund a campaign in SOL, the creator receives a fixed starting tranche,
 and later tranches depend on contribution-weighted votes. The platform may
