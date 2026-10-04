@@ -295,8 +295,11 @@ export default function CampaignForm() {
     setBusy(true);
     setStatus('Verifying the permanent terms document before any wallet prompt…');
     try {
-      await verifyPublishedManifest(prepared);
       const creator = address(connected.account.address);
+      if (prepared.terms.creator !== creator) {
+        throw new Error('The connected wallet changed after review. Review the campaign again before signing.');
+      }
+      await verifyPublishedManifest(prepared);
       let campaign = await getCampaignV2(client, prepared.campaign);
       if (campaign && campaign.trancheCount > prepared.terms.tranches.length) {
         throw new Error('The existing draft already has more milestones than this saved form. Use the original manifest to resume it.');

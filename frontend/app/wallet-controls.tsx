@@ -141,6 +141,7 @@ export default function WalletControls() {
           {status ? <p className="p-2 text-xs text-slate-700" role="status">{status}</p> : null}
         </div>
       ) : null}
+      {!open && status ? <p className="absolute right-0 mt-2 w-64 rounded border border-slate-200 bg-white p-2 text-xs text-slate-700 shadow-sm" role="status">{status}</p> : null}
     </div>
   );
 }
