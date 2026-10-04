@@ -25,6 +25,28 @@ function formatSol(lamports: bigint): string {
 
 /** Solana `AccountNotFound` transaction error code. */
 const ACCOUNT_NOT_FOUND = 7050003;
+const BLOCKHASH_NOT_FOUND = 7050008;
+const PREFLIGHT_FAILURE = -32002;
+
+type ErrorNode = {
+  code?: number;
+  context?: { __code?: number; logs?: readonly string[] | null; unitsConsumed?: bigint | null };
+  cause?: unknown;
+  message?: string;
+};
+
+function errorCode(error: unknown): number | undefined {
+  const node = error as ErrorNode;
+  return node.context?.__code ?? node.code;
+}
+
+function hasEmptyPreflightContext(error: unknown): boolean {
+  const node = error as ErrorNode;
+  return errorCode(error) === PREFLIGHT_FAILURE
+    && Array.isArray(node.context?.logs)
+    && node.context?.logs.length === 0
+    && node.context?.unitsConsumed === 0n;
+}
 
 /**
  * The RPC/send plugins wrap the underlying simulation error several levels
@@ -35,8 +57,8 @@ const ACCOUNT_NOT_FOUND = 7050003;
 export function describeSendError(error: unknown): string {
   let current: unknown = error;
   for (let depth = 0; depth < 8 && current; depth += 1) {
-    const node = current as { message?: string; context?: { __code?: number }; cause?: unknown };
-    const code = node.context?.__code;
+    const node = current as ErrorNode;
+    const code = errorCode(current);
     if (code === ACCOUNT_NOT_FOUND) {
       return (
         'Your wallet has no devnet SOL, so it cannot pay the network fee for this transaction. ' +
@@ -48,6 +70,12 @@ export function describeSendError(error: unknown): string {
         'This program is not deployed on the cluster your wallet is connected to. ' +
         'Switch your wallet to Devnet or redeploy the program.'
       );
+    }
+    if (code === BLOCKHASH_NOT_FOUND) {
+      return 'The wallet approval took too long and the transaction blockhash expired. Try signing again.';
+    }
+    if (code === PREFLIGHT_FAILURE && hasEmptyPreflightContext(current)) {
+      return 'The Devnet RPC could not simulate this transaction. Keep Phantom on Devnet and try again with a new campaign ID.';
     }
     current = node.cause;
   }
@@ -88,35 +116,35 @@ export async function sendCampaignInstruction(
 ): Promise<string> {
   await assertFeePayerFunded(client, payer);
 
-  const { value: latestBlockhash } = await withRpcRetry(
-    () => client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send(),
-  );
-
-  const message = pipe(
-    createTransactionMessage({ version: 0 }),
-    (m) => setTransactionMessageFeePayerSigner(signer, m),
-    (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-    (m) => appendTransactionMessageInstruction(ix, m),
-  );
-
-  const signed = await (async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await signTransactionMessageWithSigners(message);
+      const { value: latestBlockhash } = await withRpcRetry(
+        () => client.rpc.getLatestBlockhash({ commitment: 'processed' }).send(),
+      );
+
+      const message = pipe(
+        createTransactionMessage({ version: 0 }),
+        (m) => setTransactionMessageFeePayerSigner(signer, m),
+        (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        (m) => appendTransactionMessageInstruction(ix, m),
+      );
+
+      const signed = await signTransactionMessageWithSigners(message);
+      assertIsTransactionWithBlockhashLifetime(signed);
+      const signature = getSignatureFromTransaction(signed);
+      const sendAndConfirm = sendAndConfirmTransactionFactory({
+        rpc: client.rpc,
+        rpcSubscriptions: client.rpcSubscriptions,
+      });
+      await withRpcRetry(() => sendAndConfirm(signed, {
+        commitment: 'confirmed',
+        preflightCommitment: 'processed',
+      }));
+      return signature;
     } catch (error) {
+      if (attempt === 0 && hasEmptyPreflightContext(error)) continue;
       throw new Error(describeSendError(error));
     }
-  })();
-  assertIsTransactionWithBlockhashLifetime(signed);
-
-  const signature = getSignatureFromTransaction(signed);
-  const sendAndConfirm = sendAndConfirmTransactionFactory({
-    rpc: client.rpc,
-    rpcSubscriptions: client.rpcSubscriptions,
-  });
-  try {
-    await withRpcRetry(() => sendAndConfirm(signed, { commitment: 'confirmed' }));
-  } catch (error) {
-    throw new Error(describeSendError(error));
   }
-  return signature;
+  throw new Error('Transaction failed.');
 }
