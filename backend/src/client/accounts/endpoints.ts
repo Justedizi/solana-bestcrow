@@ -22,6 +22,7 @@ export interface AccountsEndpoints {
   login: EndpointDefinition<{ body: LoginInput }, SessionDto>;
   logout: EndpointDefinition<Empty, SuccessDto>;
   me: EndpointDefinition<Empty, AccountDto>;
+  contributions: EndpointDefinition<Empty, ContributionDto[]>;
   challenge: EndpointDefinition<{ body: WalletChallengeInput }, WalletChallengeDto>;
   linkWallet: EndpointDefinition<{ body: WalletProofInput }, WalletDto>;
   walletLogin: EndpointDefinition<{ body: WalletProofInput }, SessionDto>;
@@ -38,6 +39,7 @@ export const accountsEndpoints: AccountsEndpoints = {
   login: { path: 'api/accounts/auth/login', method: 'POST', auth: 'public' },
   logout: { path: 'api/accounts/auth/logout', method: 'POST', auth: 'required' },
   me: { path: 'api/accounts/me', method: 'GET', auth: 'required' },
+  contributions: { path: 'api/accounts/me/contributions', method: 'GET', auth: 'required' },
   challenge: { path: 'api/accounts/wallets/challenge', method: 'POST', auth: 'optional' },
   linkWallet: { path: 'api/accounts/wallets/link', method: 'POST', auth: 'required' },
   walletLogin: { path: 'api/accounts/auth/wallet-login', method: 'POST', auth: 'public' },

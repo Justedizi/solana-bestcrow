@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { UserDto } from './auth/types.js';
 import type { WalletDto } from './wallets/types.js';
@@ -59,6 +59,14 @@ export class AccountRepository {
     this.db.prepare(`INSERT INTO account_users (id,email,display_name,password_hash,created_at)
       VALUES (?,?,?,?,?)`).run(id, email, displayName, passwordHash, now);
     return { id, email, displayName, passwordHash, createdAt: now };
+  }
+
+  /** Create the internal account used by wallet-first authentication. */
+  public createWalletUser(address: string, now: number): UserRecord {
+    const user = this.createUser(`wallet:${address}@local.invalid`, 'Wallet user',
+      `disabled:${randomBytes(32).toString('hex')}`, now);
+    this.createWallet(user.id, address, now);
+    return user;
   }
 
   public findUserByEmail(email: string): UserRecord | undefined {

@@ -4,7 +4,7 @@ import { ApiError, notFound } from '../../../api/middleware/error.js';
 import { sha256, toHex } from '../../../solana/program.js';
 import { pagination, parseAddress, parseU64 } from '../validation.js';
 import type {
-  CampaignDto, DonorDto, EventDto, ListCampaignFilters, MetadataDto, MetadataInput,
+  CampaignDto, ContributionDto, DonorDto, EventDto, ListCampaignFilters, MetadataDto, MetadataInput,
   Paginated, ProgramStats,
 } from './types.js';
 
@@ -96,7 +96,7 @@ export function verifyDescription(descHashHex: string, description: string): boo
 }
 
 export type CampaignStore = Pick<Store,
-  'listCampaigns' | 'getCampaign' | 'listDonors' | 'listEvents' | 'countEvents'
+  'listCampaigns' | 'getCampaign' | 'listDonors' | 'listDonorsByWallets' | 'listEvents' | 'countEvents'
   | 'getMetadata' | 'upsertMetadata'>;
 
 export class CampaignsService {
@@ -176,6 +176,16 @@ export class CampaignsService {
     const page = pagination(limit, offset);
     const donors = this.store.listDonors(campaign.address).map(toDonorDto);
     return { items: donors.slice(page.offset, page.offset + page.limit), total: donors.length, ...page };
+  }
+
+  public contributions(wallets: string[]): ContributionDto[] {
+    const rows = this.store.listDonorsByWallets(wallets);
+    return rows.flatMap((row) => {
+      const campaign = this.store.getCampaign(row.campaign);
+      if (!campaign) return [];
+      return [{ ...toDonorDto(row), campaignStatus: campaign.status,
+        campaignDeadline: campaign.deadline, campaignSlot: campaign.slot }];
+    });
   }
 
   public events(address: string, limit = 50, offset = 0): Paginated<EventDto> {

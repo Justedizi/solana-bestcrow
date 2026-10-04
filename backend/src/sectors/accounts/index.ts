@@ -52,6 +52,10 @@ export class AccountsSector {
     this.router.get('/me', this.requireSession, wrap(async (_req, res) => {
       res.json({ user: res.locals.user, wallets: this.wallets.list(res.locals.user.id as string) });
     }));
+    this.router.get('/me/contributions', this.requireSession, wrap(async (_req, res) => {
+      const wallets = this.wallets.list(res.locals.user.id as string);
+      res.json(chain.campaigns.contributions(wallets.map((wallet) => wallet.address)));
+    }));
   }
 
   public readonly requireSession: RequestHandler = (req, res, next) => {

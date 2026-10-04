@@ -8,6 +8,7 @@ export type {
   WalletChallengeInput,
   WalletProofInput,
   AccountDto,
+  ContributionDto,
 } from '../../sectors/accounts/types.js';
 export type {
   PaymentDto,

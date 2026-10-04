@@ -42,8 +42,15 @@ export class WalletService {
       if (!userId) throw new ApiError(401, 'Sign in before linking a wallet');
       if (wallet && wallet.userId !== userId) throw new ApiError(409, 'Wallet is already linked to another account');
     } else {
-      if (!wallet) throw new ApiError(404, 'Wallet is not linked to an account');
-      userId = wallet.userId;
+      if (!wallet) {
+        // Wallet-first onboarding: the signed challenge is the proof of ownership.
+        // The account is created before issuing the challenge and remains unusable
+        // through password auth because its password hash is deliberately disabled.
+        const user = this.repository.createWalletUser(value, this.now());
+        userId = user.id;
+      } else {
+        userId = wallet.userId;
+      }
     }
     if (!userId || !this.repository.getUser(userId)) throw new ApiError(401, 'Account not found');
     const id = randomUUID();

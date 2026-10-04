@@ -32,6 +32,12 @@ export interface DonorDto {
   updatedAt: number;
 }
 
+export interface ContributionDto extends DonorDto {
+  campaignStatus: string;
+  campaignDeadline: number;
+  campaignSlot: number;
+}
+
 export interface EventDto {
   id: number;
   signature: string;

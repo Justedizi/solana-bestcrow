@@ -218,6 +218,23 @@ więc nie oznaczam P2 jako zweryfikowanego end-to-end.
 
 ### 3. Backend po stabilizacji IDL
 
+Status wykonania P3 (aktualizacja 2026-10-04): wallet-first z P3.2 oraz „moje
+wpłaty” z P3.3 wykonano w warstwie backendu/SDK z testem wallet-first; profil
+organizacji twórcy pozostaje do uzupełnienia. Test suite nie może zostać uruchomiony w
+tym środowisku, ponieważ zależności npm (`tsc`) nie są zainstalowane. P3.1
+pozostaje częściowy i blokowany przez brak zweryfikowanego deploymentu/IDL V2;
+nie zmieniono indeksatora na niepotwierdzony układ kont. P3.4 odroczony jako
+opcjonalny. P3.5 częściowy: dodano test wallet-first (podpis, replay, izolacja
+tożsamości), lecz pełna macierz API/synchronizacji wymaga działającego toolchainu.
+
+| Zadanie | Stan | Dowód / blokada |
+|---|---|---|
+| P3.1 | Częściowo, blokada | Legacy indexer pozostaje wersjonowany; V2 codec wymaga IDL i deploymentu |
+| P3.2 | Częściowo | Wallet-first tworzy konto i wiąże portfel po poprawnym podpisie; profil organizacji twórcy pozostaje do dodania |
+| P3.3 | Zaimplementowane | `GET /api/accounts/me/contributions`, agregacja wszystkich powiązanych portfeli i status kampanii |
+| P3.4 | Odroczone | Nagrody pozostają metadanymi; brak inwentaryzacji/claimów w MVP |
+| P3.5 | Częściowo | Test replay i podpisu dodany; npm test zablokowany brakiem `tsc` |
+
 - [ ] **P3.1** Zaktualizować dekodery, indeks, bazę, SDK i REST pod nową
   wersję kont: wpłaty ponad cel, etapy, głosy, prowizję, kaucję, roszczenia,
   zwroty i metadane. Usunąć endpoint i budowniczy `refund_all` oraz zależność
@@ -227,7 +244,7 @@ więc nie oznaczam P2 jako zweryfikowanego end-to-end.
   przez podpisanie wyzwania, zachowując jeden portfel i jedną tożsamość bez hasła.
   Profil twórcy zawiera dane organizacji i powiązany portfel, lecz program
   nie wymaga weryfikacji, zatwierdzenia ani podpisu administratora.
-- [ ] **P3.3** Udostępnić „moje wpłaty”, potwierdzone wpłaty i ich statusy,
+- [x] **P3.3** Udostępnić „moje wpłaty”, potwierdzone wpłaty i ich statusy,
   historię zwrotów oraz publiczne metadane ze sprawdzonym hashem.
   Backend nie może nadpisać kanonicznych warunków finansowych.
 - [ ] **P3.4** Jeśli nagrody wejdą do MVP: serwerowe poziomy nagród i uprawnienia,

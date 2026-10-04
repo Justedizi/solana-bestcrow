@@ -64,3 +64,24 @@ test('invalid and oversized credential JSON is rejected without logging request 
     store.close();
   }
 });
+
+test('wallet-first login provisions an account for an unknown wallet and rejects replay', async () => {
+  const store = new Store(':memory:');
+  const backend = new BackendServer(store);
+  const client = new BestcrowClient({ baseUrl: 'http://backend.test', fetch: createTestFetch(backend.app) });
+  const pair = generateKeyPairSync('ed25519');
+  const wallet = getAddressDecoder().decode(pair.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32));
+  try {
+    const challenge = await client.accounts.createWalletChallenge({ address: wallet, purpose: 'login' });
+    const proof = { challengeId: challenge.id,
+      signatureBase64: sign(null, Buffer.from(challenge.message), pair.privateKey).toString('base64') };
+    const session = await client.accounts.walletLogin(proof);
+    assert.equal(session.user.email, `wallet:${wallet}@local.invalid`);
+    const account = client.withSession(session.token);
+    assert.deepEqual((await account.accounts.listWallets()).map((item) => item.address), [wallet]);
+    await assert.rejects(client.accounts.walletLogin(proof), (error: unknown) =>
+      error instanceof ApiClientError && error.status === 401);
+  } finally {
+    store.close();
+  }
+});

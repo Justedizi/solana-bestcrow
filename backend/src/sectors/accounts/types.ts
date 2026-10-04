@@ -3,8 +3,11 @@ export type { WalletChallengeDto, WalletChallengeInput, WalletDto, WalletProofIn
 
 import type { UserDto } from './auth/types.js';
 import type { WalletDto } from './wallets/types.js';
+import type { ContributionDto } from '../chain/campaigns/types.js';
 
 export interface AccountDto {
   user: UserDto;
   wallets: WalletDto[];
 }
+
+export type { ContributionDto };

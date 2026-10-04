@@ -27,6 +27,9 @@ export class AccountsService {
 
   public logout(): Promise<SuccessDto> { return this.requester.request(accountsEndpoints.logout); }
   public getMe(): Promise<AccountDto> { return this.requester.request(accountsEndpoints.me); }
+  public listContributions(): Promise<import('./types.js').ContributionDto[]> {
+    return this.requester.request(accountsEndpoints.contributions);
+  }
 
   public createWalletChallenge(body: WalletChallengeInput): Promise<WalletChallengeDto> {
     return this.requester.request(accountsEndpoints.challenge, { params: { body } });
