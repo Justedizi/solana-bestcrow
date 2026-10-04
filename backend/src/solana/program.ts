@@ -73,12 +73,14 @@ export const toHex = (bytes: Uint8Array): string => Buffer.from(bytes).toString(
 export const fromHex = (hex: string): Uint8Array => new Uint8Array(Buffer.from(hex, 'hex'));
 
 const u64Le = (value: bigint): Uint8Array => {
+  if (value < 0n || value > (1n << 64n) - 1n) throw new RangeError('Value is outside the u64 range');
   const bytes = new Uint8Array(8);
   new DataView(bytes.buffer).setBigUint64(0, value, true);
   return bytes;
 };
 
 const i64Le = (value: bigint): Uint8Array => {
+  if (value < -(1n << 63n) || value > (1n << 63n) - 1n) throw new RangeError('Value is outside the i64 range');
   const bytes = new Uint8Array(8);
   new DataView(bytes.buffer).setBigInt64(0, value, true);
   return bytes;
@@ -105,7 +107,11 @@ const matches = (data: Uint8Array, discriminator: Uint8Array, offset = 0): boole
 
 export const parseBigInt = (value: string | number | bigint): bigint => {
   if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') return BigInt(Math.trunc(value));
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new RangeError('Integer must be represented without precision loss');
+    return BigInt(value);
+  }
+  if (!/^-?\d+$/.test(value)) throw new TypeError('Expected an integer string');
   return BigInt(value);
 };
 
@@ -138,7 +144,7 @@ export function decodeCampaignAccount(accountAddress: Address, data: Uint8Array)
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const statusByte = data[105] ?? 0;
   const donorCount = data[106] ?? 0;
-  if (statusByte > 2 || donorCount > MAX_DONORS) return null;
+  if (statusByte > 2 || donorCount > MAX_DONORS || (data[104] !== 0 && data[104] !== 1)) return null;
   const donors: Address[] = [];
   for (let i = 0; i < donorCount; i += 1) {
     const start = 107 + i * 32;
@@ -162,6 +168,7 @@ export function decodeCampaignAccount(accountAddress: Address, data: Uint8Array)
 
 export function decodeDonorLedger(accountAddress: Address, data: Uint8Array): DonorLedgerAccount | null {
   if (data.length !== DONOR_LEDGER_ACCOUNT_SIZE || !matches(data, DONOR_LEDGER_DISCRIMINATOR)) return null;
+  if (data[80] !== 0 && data[80] !== 1) return null;
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   return {
     address: accountAddress,
@@ -210,6 +217,8 @@ export const createCampaignPlan = async (args: {
   deadline: bigint;
   descHash: Uint8Array;
 }): Promise<InstructionPlan> => {
+  if (args.descHash.length !== 32) throw new RangeError('Description hash must contain 32 bytes');
+  if (args.goal <= 0n) throw new RangeError('Campaign goal must be greater than zero');
   const campaign = await getCampaignPda(args.creator, args.campaignId);
   const vault = await getVaultPda(campaign);
   return plan(
@@ -234,8 +243,9 @@ export const pledgePlan = async (args: {
   donor: Address;
   campaign: Address;
   amount: bigint;
-}): Promise<InstructionPlan> =>
-  plan(
+}): Promise<InstructionPlan> => {
+  if (args.amount <= 0n) throw new RangeError('Pledge amount must be greater than zero');
+  return plan(
     'pledge',
     [
       { pubkey: args.donor, signer: true, writable: true },
@@ -246,6 +256,7 @@ export const pledgePlan = async (args: {
     ],
     concatBytes(instructionDiscriminators.pledge, u64Le(args.amount)),
   );
+};
 
 export const finalizePlan = (args: { caller: Address; campaign: Address }): InstructionPlan =>
   plan(
@@ -292,8 +303,11 @@ export const refundAllPlan = async (args: {
   creator: Address;
   donors: Address[];
 }): Promise<InstructionPlan> => {
+  if (args.donors.length > MAX_DONORS || new Set(args.donors).size !== args.donors.length) {
+    throw new RangeError('Refund donors must be unique and within the campaign donor limit');
+  }
   const accounts: AccountMetaPlan[] = [
-    { pubkey: args.caller, signer: true, writable: false },
+    { pubkey: args.caller, signer: true, writable: true },
     { pubkey: args.campaign, signer: false, writable: true },
     { pubkey: await getVaultPda(args.campaign), signer: false, writable: true },
     { pubkey: args.creator, signer: false, writable: true },

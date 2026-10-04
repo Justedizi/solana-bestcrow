@@ -1,12 +1,17 @@
 import { createSolanaRpc, type Address, type Signature } from '@solana/kit';
 import { config } from '../config.js';
+import { withRpcRetry } from './retry.js';
 
 export const rpc = createSolanaRpc(config.rpcUrl);
+const retryOptions = {
+  attempts: config.rpcRetryAttempts,
+  baseDelayMs: config.rpcRetryBaseDelayMs,
+};
 
 export interface RawAccount {
   address: Address;
   owner: Address;
-  lamports: number;
+  lamports: bigint;
   data: Uint8Array;
 }
 
@@ -20,28 +25,31 @@ const readData = (value: readonly [string, string] | string): Uint8Array => {
 };
 
 export async function getProgramAccounts(dataSize: number): Promise<RawAccount[]> {
-  const accounts = await rpc
+  const accounts = await withRpcRetry(() => rpc
     .getProgramAccounts(config.programId as Address, {
       encoding: 'base64',
       commitment: 'confirmed',
       filters: [{ dataSize: BigInt(dataSize) }],
     })
-    .send();
+    .send(), retryOptions);
   return accounts.map((entry) => ({
     address: entry.pubkey,
     owner: entry.account.owner,
-    lamports: Number(entry.account.lamports),
+    lamports: entry.account.lamports,
     data: readData(entry.account.data as unknown as readonly [string, string]),
   }));
 }
 
 export async function getAccount(addressValue: Address): Promise<RawAccount | null> {
-  const response = await rpc.getAccountInfo(addressValue, { encoding: 'base64', commitment: 'confirmed' }).send();
+  const response = await withRpcRetry(
+    () => rpc.getAccountInfo(addressValue, { encoding: 'base64', commitment: 'confirmed' }).send(),
+    retryOptions,
+  );
   if (!response.value) return null;
   return {
     address: addressValue,
     owner: response.value.owner,
-    lamports: Number(response.value.lamports),
+    lamports: response.value.lamports,
     data: readData(response.value.data as unknown as readonly [string, string]),
   };
 }
@@ -54,9 +62,10 @@ export interface SignatureInfo {
 }
 
 export async function getRecentSignatures(limit: number): Promise<SignatureInfo[]> {
-  const entries = await rpc
-    .getSignaturesForAddress(config.programId as Address, { limit, commitment: 'confirmed' })
-    .send();
+  const entries = await withRpcRetry(
+    () => rpc.getSignaturesForAddress(config.programId as Address, { limit, commitment: 'confirmed' }).send(),
+    retryOptions,
+  );
   return entries.map((entry) => ({
     signature: entry.signature,
     slot: Number(entry.slot),
@@ -71,13 +80,13 @@ export interface TransactionLogs {
 }
 
 export async function getTransactionLogs(signature: string): Promise<TransactionLogs | null> {
-  const response = await rpc
+  const response = await withRpcRetry(() => rpc
     .getTransaction(signature as Signature, {
-      maxSupportedTransactionVersion: 0,
+      maxSupportedTransactionVersion: 1,
       encoding: 'json',
       commitment: 'confirmed',
     })
-    .send();
+    .send(), retryOptions);
   if (!response) return null;
   return {
     logMessages: [...(response.meta?.logMessages ?? [])],
@@ -91,9 +100,10 @@ export async function getMultipleAccounts(addresses: Address[]): Promise<Array<R
   const results: Array<RawAccount | null> = [];
   for (let i = 0; i < addresses.length; i += MULTIPLE_ACCOUNTS_CHUNK) {
     const chunk = addresses.slice(i, i + MULTIPLE_ACCOUNTS_CHUNK);
-    const response = await rpc
-      .getMultipleAccounts(chunk, { encoding: 'base64', commitment: 'confirmed' })
-      .send();
+    const response = await withRpcRetry(
+      () => rpc.getMultipleAccounts(chunk, { encoding: 'base64', commitment: 'confirmed' }).send(),
+      retryOptions,
+    );
     response.value.forEach((value, index) => {
       const owner = chunk[index];
       if (!value || owner === undefined) {
@@ -103,7 +113,7 @@ export async function getMultipleAccounts(addresses: Address[]): Promise<Array<R
       results.push({
         address: owner,
         owner: value.owner,
-        lamports: Number(value.lamports),
+        lamports: value.lamports,
         data: readData(value.data as unknown as readonly [string, string]),
       });
     });
@@ -112,10 +122,10 @@ export async function getMultipleAccounts(addresses: Address[]): Promise<Array<R
 }
 
 export async function getSlot(): Promise<number> {
-  return Number(await rpc.getSlot({ commitment: 'confirmed' }).send());
+  return Number(await withRpcRetry(() => rpc.getSlot({ commitment: 'confirmed' }).send(), retryOptions));
 }
 
-export async function getVaultBalance(vault: Address): Promise<number> {
+export async function getVaultBalance(vault: Address): Promise<bigint> {
   const info = await getAccount(vault);
-  return info?.lamports ?? 0;
+  return info?.lamports ?? 0n;
 }

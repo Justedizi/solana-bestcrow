@@ -7,6 +7,11 @@ requirements below describe planned MVP behavior, not existing UI.
 Follow the [ordered implementation plan](../docs/IMPLEMENTATION_PLAN.md)
 for the financial rules and backend dependencies.
 
+For the visual layer, use [Colosseum](https://colosseum.com/) as the design
+inspiration. The [frontend sketch](STOCKGATE_FRONTEND_SKETCH.md#visual-reference)
+explains how to adapt that reference to Bestcrow without copying its branding
+or weakening the clarity of campaign and transaction states.
+
 Reusable Solana helpers remain in `app/lib/` for the next implementation pass.
 They retry transient Solana HTTP 429 responses and show a dedicated-provider
 hint after the retry budget is exhausted.

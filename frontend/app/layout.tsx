@@ -1,50 +1,32 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Mark } from './mark';
-import { WalletButton } from './wallet-button';
 import './globals.css';
-import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: 'Common Ground — charity crowdfunding without the middleman',
-  description:
-    'Charity crowdfunding where funds are released by rule, not an operator. Goal met → the charity claims; goal missed → every donor refunded in one transaction. Built on Solana.',
+  title: 'Charity Vault',
+  description: 'Bare frontend scaffold for Charity Vault.',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>
-          <header>
-            <div className="shell nav">
-              <Link href="/" className="logo">
-                <Mark /> common<span>ground</span>
-                <small>/ CHARITY VAULT</small>
-              </Link>
-              <nav>
-                <Link href="/discover">Discover</Link>
-                <Link href="/how-it-works">How it works</Link>
-              </nav>
-              <div className="nav-actions">
-                <Link className="outline" href="/campaign/new">
-                  Start a campaign ↗
-                </Link>
-                <WalletButton />
-              </div>
+      <body className="min-h-screen bg-white text-slate-950">
+        <header className="border-b border-slate-200">
+          <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4" aria-label="Main navigation">
+            <Link href="/" className="font-medium">
+              Charity Vault
+            </Link>
+            <div className="flex gap-4 text-sm">
+              <Link href="/discover" className="hover:underline">Discover</Link>
+              <Link href="/how-it-works" className="hover:underline">How it works</Link>
             </div>
-          </header>
-          <main>{children}</main>
-          <footer>
-            <div className="shell">
-              <b>common ground</b>
-              <span>Small acts. Transparent outcomes. Built on Solana.</span>
-              <Link href="/how-it-works">The trust model ↗</Link>
-            </div>
-          </footer>
-        </Providers>
+          </nav>
+        </header>
+        <main className="mx-auto min-h-[calc(100vh-7rem)] max-w-5xl px-6 py-12">{children}</main>
+        <footer className="border-t border-slate-200 px-6 py-4 text-sm text-slate-600">
+          <div className="mx-auto max-w-5xl">Charity Vault</div>
+        </footer>
       </body>
     </html>
   );

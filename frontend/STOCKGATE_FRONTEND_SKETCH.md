@@ -20,6 +20,17 @@ verification. Do not add a `verified` badge, an admin acceptance flow,
 or a platform co-signature in the MVP. Wallet addresses are public;
 participants are pseudonymous rather than anonymous.
 
+## Visual reference
+
+The visual design of the Bestcrow frontend should be inspired by
+[Colosseum](https://colosseum.com/). Use it as a reference for the overall
+quality, visual hierarchy, typography, spacing, navigation, and presentation
+of startup projects. Adapt those ideas to Bestcrow's campaign discovery,
+funding, milestone voting, and refund workflows. Do not copy Colosseum's
+branding, assets, text, or page layouts literally. Clear financial states,
+accessible controls, and legible mobile screens take priority over decorative
+similarity.
+
 ## Navigation and main journeys
 
 | View | Primary task | Essential content |
