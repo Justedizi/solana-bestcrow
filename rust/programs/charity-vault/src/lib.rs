@@ -1,6 +1,17 @@
 pub mod constants;
 pub mod error;
 pub mod funding_v2;
+pub mod lifecycle_v2;
+pub(crate) use lifecycle_v2::{
+    __client_accounts_release_tranche_v2, __client_accounts_resolve_milestone_v2,
+    __client_accounts_return_funds_v2, __client_accounts_submit_evidence_v2,
+    __client_accounts_terminate_v2, __client_accounts_termination_refund_v2,
+    __client_accounts_vote_milestone_v2, __client_accounts_withdraw_claim_v2,
+};
+pub use lifecycle_v2::{
+    ReleaseTrancheV2, ResolveMilestoneV2, ReturnFundsV2, SubmitEvidenceV2, TerminateV2,
+    TerminationRefundV2, VoteMilestoneV2, WithdrawClaimV2,
+};
 pub mod instructions;
 pub mod state;
 pub(crate) use funding_v2::__client_accounts_close_backer_ledger_v2;
@@ -44,6 +55,42 @@ declare_id!("74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG");
 #[program]
 pub mod charity_vault {
     use super::*;
+    pub fn submit_evidence_v2(
+        ctx: Context<SubmitEvidenceV2>,
+        index: u8,
+        hash: [u8; 32],
+        uri: String,
+    ) -> Result<()> {
+        lifecycle_v2::submit_evidence(ctx, index, hash, uri)
+    }
+    pub fn vote_milestone_v2(
+        ctx: Context<VoteMilestoneV2>,
+        index: u8,
+        approve: bool,
+    ) -> Result<()> {
+        lifecycle_v2::vote_milestone(ctx, index, approve)
+    }
+    pub fn finalize_vote_v2(ctx: Context<ResolveMilestoneV2>, index: u8) -> Result<()> {
+        lifecycle_v2::finalize_vote(ctx, index)
+    }
+    pub fn finalize_proof_timeout_v2(ctx: Context<ResolveMilestoneV2>, index: u8) -> Result<()> {
+        lifecycle_v2::finalize_proof_timeout(ctx, index)
+    }
+    pub fn release_tranche_v2(ctx: Context<ReleaseTrancheV2>, index: u8) -> Result<()> {
+        lifecycle_v2::release_tranche(ctx, index)
+    }
+    pub fn withdraw_claim_v2<'a>(ctx: Context<'a, WithdrawClaimV2<'a>>, index: u8) -> Result<()> {
+        lifecycle_v2::withdraw_claim(ctx, index)
+    }
+    pub fn terminate_v2(ctx: Context<TerminateV2>, index: u8) -> Result<()> {
+        lifecycle_v2::terminate(ctx, index)
+    }
+    pub fn return_funds_v2(ctx: Context<ReturnFundsV2>, amount: u64) -> Result<()> {
+        lifecycle_v2::return_funds(ctx, amount)
+    }
+    pub fn claim_termination_refund_v2(ctx: Context<TerminationRefundV2>) -> Result<()> {
+        lifecycle_v2::termination_refund(ctx)
+    }
 
     pub fn initialize_protocol_config_v2(
         ctx: Context<InitializeConfigV2>,

@@ -179,6 +179,21 @@ zmiany konfiguracji; inicjalizować przed usunięciem upgrade authority.
 
 ### 2. Program Solana: etapy, wypłaty i testy nadużyć
 
+Status wykonania P2: dodano moduł [`lifecycle_v2.rs`](../rust/programs/charity-vault/src/lifecycle_v2.rs)
+z terminami dowodu i głosowania, rundą poprawy, obowiązkowym splitem,
+jednorazowym claimem, rezerwą zatwierdzonych transz, termination i refundem
+proporcjonalnym. Osiem testów bibliotecznych V2 przechodzi. Pełny test
+LiteSVM i build SBF są zablokowane błędami środowiska linkera/platform-tools,
+więc nie oznaczam P2 jako zweryfikowanego end-to-end.
+
+| Zadanie | Wynik tego etapu | Problem do pełnego zamknięcia |
+| --- | --- | --- |
+| P2.1 | Okna dowodu i głosowania są zapisane w `TrancheV2`; głos przed/po oknie i finalizacja przed terminem są odrzucane; PDA głosu blokuje duplikat | Brak testu LiteSVM na transakcjach z Clock z powodu niedostępnego SBF |
+| P2.2 | Próg to `yes_weight * 2 > final_raised`; 50% i brak głosów przegrywają; pierwsza porażka otwiera 30 dni, potem 7 dni drugiej rundy; timeout dowodu jest permissionless | Brak end-to-end potwierdzenia drugiej rundy i zniknięcia twórcy |
+| P2.3 | Claim ma trwałe `claim_created` i `settled`; split i odbiorcy są walidowani z konta etapu; `reserved` chroni zatwierdzone środki przy termination; dowolny caller uruchamia wypłatę | Brak testu kont i transferów; status `Completed` wymaga pełnego przebiegu wszystkich transz |
+| P2.4 | Creator może dobrowolnie dopłacić SOL; termination po rejection lub dobrowolnie przenosi kaucję do vault i wylicza pulę po odjęciu rent/rezerw; refund jest indywidualny | Brak testu LiteSVM oraz decyzji, czy dobrowolne zakończenie ma zawsze przepadek kaucji w każdym wariancie |
+| P2.5 | Dodano testy granic terminów, progu 50%, drugiej porażki, splitu i rounding; 8 testów bibliotecznych przechodzi | Pełna macierz LiteSVM (2/5 etapów, 13+ backerów, duplikaty i rzeczywiste PDA) czeka na naprawę toolchainu |
+
 - [ ] **P2.1** Egzekwować kolejność i termin pierwszego dowodu; po dowodzie
   otwierać głosowanie na 7 dni. Odrzucać głos za wcześnie lub za późno,
   podwójny głos i finalizację przed terminem.

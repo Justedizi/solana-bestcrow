@@ -48,6 +48,7 @@ pub struct CampaignV2 {
     pub status: FundingStatusV2,
     pub tranche_count: u8,
     pub shares_bps: [u16; MAX_TRANCHES],
+    pub proof_periods: [i64; MAX_TRANCHES],
     pub tranche_amounts: [u64; MAX_TRANCHES],
     pub raised: u64,
     pub final_raised: u64,
@@ -56,6 +57,11 @@ pub struct CampaignV2 {
     pub settled_at: i64,
     pub first_proof_deadline: i64,
     pub bond_claimed: bool,
+    pub current_tranche: u8,
+    pub proof_deadline: i64,
+    pub reserved: u64,
+    pub refund_pool: u64,
+    pub refunds_paid: u64,
     pub bump: u8,
 }
 
@@ -70,6 +76,17 @@ pub struct TrancheV2 {
     pub recipients: [Pubkey; MAX_RECIPIENTS],
     pub recipient_shares_bps: [u16; MAX_RECIPIENTS],
     pub settled: bool,
+    pub status: crate::lifecycle_v2::TrancheStatusV2,
+    pub round: u8,
+    pub evidence_hash: [u8; 32],
+    #[max_len(MAX_URI)]
+    pub evidence_uri: String,
+    pub vote_start: i64,
+    pub vote_end: i64,
+    pub revision_end: i64,
+    pub approve_weight: u64,
+    pub reject_weight: u64,
+    pub claim_created: bool,
     pub bump: u8,
 }
 
@@ -165,6 +182,7 @@ pub fn create_draft(
         status: FundingStatusV2::Draft,
         tranche_count: 0,
         shares_bps: [0; MAX_TRANCHES],
+        proof_periods: [0; MAX_TRANCHES],
         tranche_amounts: [0; MAX_TRANCHES],
         raised: 0,
         final_raised: 0,
@@ -173,6 +191,11 @@ pub fn create_draft(
         settled_at: 0,
         first_proof_deadline: 0,
         bond_claimed: false,
+        current_tranche: 1,
+        proof_deadline: 0,
+        reserved: 0,
+        refund_pool: 0,
+        refunds_paid: 0,
         bump: ctx.bumps.campaign,
     });
     system_program::transfer(
@@ -239,9 +262,20 @@ pub fn add_tranche(
         recipients: payees,
         recipient_shares_bps: payee_shares,
         settled: false,
+        status: crate::lifecycle_v2::TrancheStatusV2::Pending,
+        round: 1,
+        evidence_hash: [0; 32],
+        evidence_uri: String::new(),
+        vote_start: 0,
+        vote_end: 0,
+        revision_end: 0,
+        approve_weight: 0,
+        reject_weight: 0,
+        claim_created: false,
         bump: ctx.bumps.tranche,
     });
     campaign.shares_bps[index as usize] = share_bps;
+    campaign.proof_periods[index as usize] = proof_period;
     campaign.tranche_count += 1;
     Ok(())
 }
@@ -404,6 +438,8 @@ pub fn finalize_funding(ctx: Context<FinalizeFundingV2>) -> Result<()> {
         campaign.tranche_amounts = allocations;
         campaign.first_proof_deadline =
             now.checked_add(30 * DAY).ok_or(FundingErrorV2::Overflow)?;
+        campaign.proof_deadline = campaign.first_proof_deadline;
+        campaign.reserved = campaign.tranche_amounts[0];
         campaign.status = FundingStatusV2::Succeeded;
     }
     emit!(FundingFinalizedV2 {
@@ -596,7 +632,7 @@ pub fn allocate(gross: u64, shares: &[u16]) -> Result<(u64, [u64; MAX_TRANCHES])
     Ok((fee, result))
 }
 
-fn transfer_owned(from: &AccountInfo, to: &AccountInfo, amount: u64) -> Result<()> {
+pub(crate) fn transfer_owned(from: &AccountInfo, to: &AccountInfo, amount: u64) -> Result<()> {
     require!(from.key != to.key, FundingErrorV2::InvalidTerms);
     let minimum = Rent::get()?.minimum_balance(from.data_len());
     let balance = from
@@ -674,6 +710,7 @@ mod tests {
             status: FundingStatusV2::Draft,
             tranche_count: 2,
             shares_bps: [5000, 5000, 0, 0, 0],
+            proof_periods: [30 * DAY; MAX_TRANCHES],
             tranche_amounts: [0; 5],
             raised: 0,
             final_raised: 0,
@@ -682,6 +719,11 @@ mod tests {
             settled_at: 0,
             first_proof_deadline: 0,
             bond_claimed: false,
+            current_tranche: 1,
+            proof_deadline: 0,
+            reserved: 0,
+            refund_pool: 0,
+            refunds_paid: 0,
             bump: 0,
         };
         assert!(require_funding(&campaign, 99).is_err());
