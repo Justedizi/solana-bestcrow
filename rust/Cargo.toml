@@ -1,5 +1,5 @@
 [workspace]
-members = ["programs/charity-vault"]
+members = ["programs/charity-vault", "programs/bestcrow"]
 resolver = "2"
 
 [profile.release]

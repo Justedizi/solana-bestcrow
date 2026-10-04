@@ -1,3 +1,6 @@
+> **ARCHIVED / SUPERSEDED — do not use as spec.** This is the original charity all-or-nothing execution plan (5 milestones, 70% approval, no fee, one-tx refund_all). The team pivoted to startup staged funding.
+> Canonical protocol: [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md). See [../DECISIONS.md](../DECISIONS.md) (D-001).
+
 # Charity Crowdfunding on Solana — Complete Execution Plan
 
 **Goal:** win the Finance Without Intermediaries track (11 300 PLN).

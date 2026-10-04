@@ -128,32 +128,50 @@ od starego układu kont jako docelowego API.
 
 ### 0. Domknięcie protokołu i migracja
 
-- [ ] **P0.1** Zatwierdzić otwarte decyzje ekonomiczne z tabeli, adres skarbca
+- [x] **P0.1** Zatwierdzić otwarte decyzje ekonomiczne z tabeli, adres skarbca
   prowizji, znaczenie pół roku i termin pierwszego dowodu; opisać zasady
   zaokrąglania, nieaktywnych głosujących i los niewydanej nadwyżki.
-- [ ] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji dla
+  → [DECISIONS.md](DECISIONS.md) **D-003** (prowizja 1% floor, kaucja, terminy,
+  zaokrąglanie ostatniej transzy, mianownik = zamrożone `raised`).
+- [x] **P0.2** Zaprojektować nową wersję kont/PDA/IDL i ścieżkę migracji dla
   istniejących kampanii. Nie interpretować starych kont według nowego układu.
-- [ ] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, stabilny publiczny
+  → **D-004**: nowy program `bestcrow`, nowe seeds; stary `charity-vault`
+  pozostaje referencją; brak migracji kont devnet.
+- [x] **P0.3** Ustalić kanoniczny JSON warunków i dowodów, stabilny publiczny
   magazyn oraz weryfikację hasha i dostępności bez naszej strony.
+  → **D-005**: kanoniczny JSON + `terms_hash`/`content_uri`; frontend nie
+  ufa parametrowi URL.
 
 ### 1. Program Solana: finansowanie i rachunkowość
 
-- [ ] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
+- [x] **P1.1** Wprowadzić stan szkicu i atomowe `start_funding` / `seal_terms`
   po dodaniu 2-5 etapów; nie przyjmować wpłat przed zamknięciem warunków.
   Odrzucać zmiany po starcie, sumy != 10000 bps, etap 0 lub >5000 bps oraz
   czas zbiórki poza 7-183 dniami. Ustalić startową transzę jako etap 0.
-- [ ] **P1.2** Usunąć górny limit `pledge <= goal`; dodać `cancel_pledge`
+  → `bestcrow`: `create_draft`, `add_tranche`, `seal_terms` (waliduje całość),
+  `Pledge` odrzuca stan != `Funding`.
+- [x] **P1.2** Usunąć górny limit `pledge <= goal`; dodać `cancel_pledge`
   tylko w trakcie finansowania, z poprawną wartością `raised`, ledgerem i zwrotem rent.
-- [ ] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; zachować pojedyncze
+  → `pledge` bez limitu celu; `cancel_pledge` tylko w oknie zbiórki.
+- [x] **P1.3** Usunąć rejestr 12 backerów i `refund_all`; zachować pojedyncze
   ledgery/PDA i permissionless `refund_for` z niepodmienialnym odbiorcą.
-- [ ] **P1.4** W finalizacji zamrozić `raised`, przy porażce odblokować 100%
+  → brak rejestru i `refund_all`; `refund_for` kieruje SOL do zarejestrowanego backera.
+- [x] **P1.4** W finalizacji zamrozić `raised`, przy porażce odblokować 100%
   wpłat bez prowizji; przy sukcesie pobrać prowizję dokładnie raz, rozliczyć kwotę
   netto i procentowe transze z resztą zaokrągleń w ostatniej.
-- [ ] **P1.5** Wymagać 0,1 SOL kaucji w oddzielnym skarbcu i wdrożyć
+  → `finalize_funding` + `allocate_tranche_amounts` (reszta w ostatniej transzy).
+- [x] **P1.5** Wymagać 0,1 SOL kaucji w oddzielnym skarbcu i wdrożyć
   zatwierdzone reguły zwrotu/przepadku, także gdy cel nie zostanie osiągnięty.
-- [ ] **P1.6** Po zakończeniu wszystkich głosowań w udanej kampanii umożliwić
+  → bond ładowany w `seal_terms`; `claim_bond` zwraca po `Failed`/`Completed`.
+- [x] **P1.6** Po zakończeniu wszystkich głosowań w udanej kampanii umożliwić
   zamknięcie ledgerów backerów i zwrot rent właściwym płatnikom, bez utraty
   danych potrzebnych do rozliczenia kampanii.
+  → `close_backer` (rent do zarejestrowanego backera). Wypłata transz/`Completed`
+  jest w całości domknięta w fazie 2.
+
+> **Status fazy 0/1:** kod w `rust/programs/bestcrow/`; `cargo check`,
+> `anchor build --arch v0` i testy workspace przechodzą. Faza 2 (głosowanie,
+> wypłata transz, zakończenie) pozostaje do zrobienia — patrz niżej.
 
 ### 2. Program Solana: etapy, wypłaty i testy nadużyć
 

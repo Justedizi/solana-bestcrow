@@ -1,3 +1,6 @@
+> **ARCHIVED / SUPERSEDED — do not use as spec.** Scratch notes from the charity phase; kept for history only.
+> Canonical protocol: [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md). See [../DECISIONS.md](../DECISIONS.md) (D-001).
+
 - Voting 
 - Min. 5 milestones
 - 50% max for each milestone

@@ -7,9 +7,11 @@ skip-lint = false
 
 [programs.devnet]
 charity_vault = "74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG"
+bestcrow = "3jGgPRa4gH25wfL49E3TAtpix5ePUZKWrQLT83eNZBVr"
 
 [programs.localnet]
 charity_vault = "74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG"
+bestcrow = "3jGgPRa4gH25wfL49E3TAtpix5ePUZKWrQLT83eNZBVr"
 
 [provider]
 cluster = "localnet"

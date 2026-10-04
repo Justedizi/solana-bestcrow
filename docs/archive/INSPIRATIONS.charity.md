@@ -1,3 +1,6 @@
+> **ARCHIVED / SUPERSEDED — do not use as spec.** Prior-art research from the charity phase; the atomic refund_all differentiator it celebrates is being removed in the target MVP.
+> Canonical protocol: [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md). See [../DECISIONS.md](../DECISIONS.md) (D-001).
+
 # Inspirations & Prior Art
 
 *Research date: 2026-10-03. Sources: GitHub code inspection (actual program sources, not READMEs) + production landscape. Purpose: know who built what before us, prove our differentiators survive contact with reality, and steal the good parts.*
