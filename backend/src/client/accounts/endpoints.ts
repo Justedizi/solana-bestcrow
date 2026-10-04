@@ -2,7 +2,9 @@ import type { EndpointDefinition } from '../../core/endpoint.js';
 import type {
   AccountDto,
   ConfirmPaymentInput,
+  ContributionDto,
   CreatePaymentInput,
+  CreatorProfileDto,
   LoginInput,
   PaymentDto,
   RegisterInput,

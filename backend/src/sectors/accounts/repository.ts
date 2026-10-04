@@ -41,6 +41,10 @@ export class AccountRepository {
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_wallets_user ON account_wallets(user_id);
+      CREATE TABLE IF NOT EXISTS account_wallet_revocations (
+        address TEXT PRIMARY KEY,
+        revoked_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS wallet_challenges (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES account_users(id),
@@ -116,14 +120,25 @@ export class AccountRepository {
 
   public createWallet(userId: string, address: string, now: number): WalletDto {
     const id = randomUUID();
+    this.db.prepare('DELETE FROM account_wallet_revocations WHERE address=?').run(address);
     this.db.prepare('INSERT INTO account_wallets (id,user_id,address,created_at) VALUES (?,?,?,?)')
       .run(id, userId, address, now);
     return { id, userId, address, createdAt: now };
   }
 
   public deleteWallet(userId: string, address: string): boolean {
-    return this.db.prepare('DELETE FROM account_wallets WHERE user_id=? AND address=?')
-      .run(userId, address).changes !== 0;
+    const result = this.db.prepare('DELETE FROM account_wallets WHERE user_id=? AND address=?')
+      .run(userId, address);
+    if (result.changes !== 0) {
+      this.db.prepare(`INSERT INTO account_wallet_revocations (address,revoked_at) VALUES (?,?)
+        ON CONFLICT(address) DO UPDATE SET revoked_at=excluded.revoked_at`).run(address, Date.now());
+    }
+    return result.changes !== 0;
+  }
+
+  public wasWalletRevoked(address: string): boolean {
+    return this.db.prepare('SELECT address FROM account_wallet_revocations WHERE address=?')
+      .get(address) !== undefined;
   }
 
   public createChallenge(challenge: Omit<ChallengeRecord, 'usedAt'>, now: number): void {
