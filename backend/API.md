@@ -1,7 +1,11 @@
 # Bestcrow Backend API
 
-Read-only indexer + helper API for the **Charity Vault** Solana program. The
-indexer watches the chain and serves fast, decoded data so the web client does
+This is the **current API**, including legacy behavior that the startup MVP must
+replace. Routes in this document exist today; the migration section at the end
+is a requirement list, not an endpoint reference.
+
+Chain-sector indexer + helper API for the Solana program currently named
+**Charity Vault**. The indexer watches the chain and serves fast, decoded data so the web client does
 not have to query `getProgramAccounts` for every page. It is a **read model**:
 the on-chain program is the only authority over funds and state.
 
@@ -10,6 +14,17 @@ the on-chain program is the only authority over funds and state.
 - Amounts are **lamports** as decimal **strings** (`u64`); `*Sol` fields give the
   human-readable SOL value alongside.
 - Addresses are base58 strings.
+
+Registration, sessions, Phantom linking and SOL payment intents are documented in
+the **[Accounts API](docs/ACCOUNTS.md)**. `PUT` metadata requires a session whose
+account has the verified campaign-creator wallet.
+Here "verified wallet" means cryptographic proof of address ownership, not
+identity review or platform approval.
+
+`GET /api/chain/config` supplies the public network (`cluster`, `rpcUrl`,
+`programId`), Wallet Standard chain (`walletChain`, null on localnet), supported
+versions `[0,1]`, `signing: "wallet"` and `submission: "frontend"`. Use this to
+check that the frontend and backend target the same network.
 
 ## Conventions
 
@@ -24,6 +39,8 @@ Every error is JSON:
 | Status | Meaning |
 | --- | --- |
 | `400` | Bad/missing query parameter |
+| `401` | Missing or expired account session |
+| `403` | Account has no verified creator wallet |
 | `404` | Resource not found |
 | `409` | Conflict (e.g. description hash mismatch) |
 | `422` | Request body failed validation (`details` has Zod issues) |
@@ -49,8 +66,8 @@ Service banner.
 ```json
 {
   "name": "bestcrow-backend",
-  "description": "Indexer and REST API for the Bestcrow / Charity Vault Solana program",
-  "docs": "/api/program",
+  "sectors": ["chain", "accounts"],
+  "config": "/api/chain/config",
   "health": "/api/health"
 }
 ```
@@ -263,11 +280,11 @@ Off-chain metadata (title, description, site, image, rewards). `404` if none.
 ```json
 {
   "campaign": "…",
-  "title": "Warm meals for 120 families",
+  "title": "Prototype launch",
   "description": "…",
   "website": "https://…",
   "imageUrl": "https://…",
-  "rewards": [ { "title": "Tote bag", "minSol": "0.1", "quantity": 50 } ],
+  "rewards": [ { "title": "Early access", "minSol": "0.1", "quantity": 50 } ],
   "verified": true,
   "createdAt": 1791067000,
   "updatedAt": 1791067050
@@ -277,6 +294,8 @@ Off-chain metadata (title, description, site, image, rewards). `404` if none.
 ### `PUT /api/campaigns/:address/metadata`
 
 Store/update metadata. `Content-Type: application/json`, max body 256 KB.
+Requires a Bearer session with the verified creator wallet. Omitted fields keep
+their previous values.
 
 If you send a `description`, its **SHA-256 must equal the campaign's on-chain
 `desc_hash`**; otherwise the request fails `409`. On success `verified` is
@@ -285,7 +304,8 @@ If you send a `description`, its **SHA-256 must equal the campaign's on-chain
 ```bash
 curl -X PUT localhost:4000/api/campaigns/5U3CJYx…/metadata \
   -H 'content-type: application/json' \
-  -d '{"title":"Warm meals","description":"exact on-chain text"}'
+  -H 'authorization: Bearer YOUR_SESSION_TOKEN' \
+  -d '{"title":"Prototype launch","description":"exact on-chain text"}'
 ```
 
 Body schema:
@@ -333,11 +353,17 @@ Every response has this shape:
 | `GET /api/instructions/claim-refund` | `donor`, `campaign` | `claim_refund` |
 | `GET /api/instructions/refund-all/:campaign` | `caller` (path: campaign address) | `refund_all` |
 
+`refund-all` is present in the current API only. It is to be removed together
+with the program instruction and the 12-donor cap. New clients should use
+individual refund claims.
+
 Notes:
-- `campaignId`, `goal`, `deadline`, `amount` are unsigned-integer strings.
+- `campaignId`, `goal`, `amount` are `u64` decimal strings; goals and pledges are
+  positive. `deadline` is an `i64` Unix timestamp string and must be in the future.
 - `descHash` is 32 hex-encoded bytes; omit it to use all-zero bytes.
-- `refund-all` pulls the donor list from the indexer and appends two accounts per
-  donor. The program caps a campaign at 12 donors so this fits one transaction.
+- `refund-all` reads and validates the actual campaign account and uses its donor
+  order. It appends two accounts per donor, including previously closed ledgers;
+  the program caps campaigns at 12 donors. RPC failures return `503`.
 - A client must still, for each account, set the correct signer/writable flags
   as returned, add the fee payer and a recent blockhash, sign, and send.
 
@@ -351,9 +377,46 @@ curl "localhost:4000/api/instructions/pledge?donor=F6sXq…&campaign=5U3CJYx…&
 
 - **Not authoritative.** Reads are eventually consistent with the indexer poll
   (`POLL_INTERVAL_MS`); always trust the program for balances and state changes.
-- **Donor cap.** The program limits a campaign to 12 donors so `refund_all`
-  fits a single legacy transaction.
+- **Legacy donor cap.** The current program limits a campaign to 12 donors so
+  `refund_all` fits a single legacy transaction. This is incompatible with the
+  intended product scale.
 - **Event history** depends on RPC log retention (`SIGNATURE_SCAN_LIMIT`);
   account state is re-synced in full each poll.
 - **Metadata** is only as trustworthy as the hash check: `verified: true` means
   the stored description matches the on-chain commitment, nothing more.
+
+## MVP API migration (planned, no routes below exist yet)
+
+The program's accounting and lifecycle must change first; then update the
+indexer, database, API DTOs, builders, and typed client together. Keep the API
+as a read model and perform all value transfers on-chain.
+
+1. Decode and expose the complete startup schedule and immutable fundraising
+   terms: 2-5 milestones, each at most 50%, totaling 100%, a fundraising window
+   of one week to six months, and no changes after fundraising starts. Expose
+   the final amount raised even when it exceeds the goal.
+2. Report gross pledges, the 1% fee charged **only on success**, the net
+   milestone budget, released and reserved claims, refundable balance, and the
+   separate 0.1 SOL creator deposit. Do not infer fees or allocations from the
+   funding goal. Show network and account-rent costs separately from the fee
+   and deposit. For a failed campaign, report a full per-backer refund with no
+   platform deduction.
+3. Index proofs, deadlines, revisions, votes, and settlement states. The first
+   voting window is seven days, followed on rejection by 30 days to revise and
+   a second seven-day vote. Approval requires yes weight strictly above 50% of
+   all eligible pledged weight. No votes means rejection. Return both numerator
+   and denominator so the UI cannot display a misleading percentage of votes
+   cast. Expose permissionless timeout/finalization actions.
+4. Remove the bulk refund builder and all donor-list account assembly. Provide
+   builders for the final individual refund and cancellation paths, with no
+   fixed donor cap. Builders must reflect the program's required split account
+   and protect one-time milestone claims and already approved amounts.
+5. Add durable metadata and proof retrieval with on-chain hash checks and clear
+   missing/mismatch states. A metadata `verified` field proves only content
+   integrity. Neither a backend account nor a platform signature may gate
+   on-chain creation. Organization profiles are informational, not a vetting
+   status. Reward entitlement/fulfilment is a later server-side phase.
+
+Existing endpoint paths and response examples above must be updated when code
+ships; in particular, `/api/program` still advertises `maxDonors: 12` and
+`refundAll`, and the six instruction builders still follow the old program.

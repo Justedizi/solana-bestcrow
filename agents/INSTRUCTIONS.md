@@ -1,12 +1,23 @@
 # Bestcrow agent setup and development instructions
 
-**The PDFs in `docs/` have the highest project priority.** Read them first and follow [AGENTS.md](AGENTS.md) for source precedence and conflicts. [CONTEXT.md](CONTEXT.md) is a secondary summary; setup guidance, skills, and MCP documentation must fit the PDF requirements. Run all commands below from the repository root.
+Read the competition PDFs in `docs/` before making competition claims, and
+follow [AGENTS.md](AGENTS.md) for source precedence. The target protocol and
+chronological work list are in [the implementation plan](../docs/IMPLEMENTATION_PLAN.md);
+[PROJECT.md](PROJECT.md) explains product intent. Run commands below from the
+repository root unless a command explicitly changes directories.
 
 Use the MCP setup already in this repository. Do not install a new server package or edit a user's global MCP config unless the existing launch path fails and the user asks for that change.
 
 ## Current work
 
-Bestcrow now targets startup/prototype crowdfunding with at least five milestones, staged releases, contribution-weighted backer voting, a seven-day revision chance for a result from 50% to below 70%, a stricter show-cause phase below 50%, and refunds of remaining escrow after termination. Read [PROJECT.md](PROJECT.md) after the PDFs. The 70% approval direction comes from the user's latest design; details of the denominator, vote windows, and execution triggers are not yet an implemented protocol.
+Bestcrow targets startup/prototype campaigns in SOL with 2-5 locked tranches
+whose shares sum to 100%, a 1% fee only on successful fundraising, and a
+separate 0.1 SOL creator deposit. A vote passes only with YES weight strictly
+above half of all final contributions. The first and second vote windows are
+seven days each, separated after a first failure by 30 full days for
+improvement. These are **target rules**; the current Rust program and
+frontend do not yet enforce them. Keep current, target and verified behavior
+distinct.
 
 The local `trustless` MCP target is a freelance escrow reference. Its client approval and cancellation rules are not a crowdfunding implementation. Do not claim that a passing reference build proves our campaign model.
 
@@ -37,7 +48,9 @@ Use Context7 for library/API questions and implementation or setup work that dep
 
 Use `solana_docs` for Solana/Anchor-specific guidance. If Context7 lacks the library/version, is offline, or returns a rate-limit error, state the limitation and consult official versioned documentation. The local `docs/solana/` snapshot is also available, but its freshness is unverified. Never report a live lookup as successful unless a tool call returned documentation.
 
-The existing [documentation lookup skill](../skills/documentation-lookup/SKILL.md) explains the tool workflow. Send focused technical questions to Context7; omit private project details, keys, and credentials.
+Send focused technical questions to Context7; omit private project details,
+keys and credentials. The optional repository-local lookup skill referenced
+in older instructions is not present in this checkout.
 
 ## Verify the local server
 
@@ -53,13 +66,31 @@ Use `solana_docs` for current Solana and Anchor documentation. Use `surfpool` fo
 
 ## Verify crowdfunding behavior when implemented
 
-Identify the campaign's actual source and test commands first; a canonical crowdfunding program has not been established in this checkout. Use local simulations for deadlines, voting and accounting before any authorized devnet demonstration.
+The source is `rust/programs/charity-vault/src`; use its actual commands
+from [rust/README.md](../rust/README.md). Use local simulations for deadlines,
+voting and accounting before devnet demonstrations. See the ordered P1/P2
+test matrix in [the implementation plan](../docs/IMPLEMENTATION_PLAN.md).
 
-Check the pre-goal pledge and on-chain deposit distinction, successful and failed fundraising, at least five milestones, no allocation above 50% of the base budget, exactly-once initial release, contribution-weighted eligibility, and the 70% approval boundary. Cover a 50%–69.99% first failed vote with seven-day revision, a below-50% show-cause phase, second vote, termination/refund, and creator disappearance. Test missed deadlines and any funded creator bond, as well as pro-rata claims from a fixed termination snapshot. Reject unauthorized recipients/releases, duplicate ballots and refunds, and attempts to alter funded terms.
+Cover 2 and 5 tranches, the 100% sum and 50% per-tranche boundary, funding
+durations of 7 and 183 days, overfunding, pre-deadline cancellation, a failed
+goal with exact refunds and no fee, and a successful goal with exactly 1%
+deducted once from gross raised. Verify that fee, payout shares, creator
+deposit, reserved claims, rent and refund liabilities cannot double-count
+the same lamports.
 
-Test overflow and extra-funding proposals separately: creator cannot spend the amount above the original goal without an approved request; a successful extra-funding poll opens an opt-in contribution path rather than minting money or charging wallets. Verify failed polls preserve the existing escrow rules.
+Test the strict >50% vote boundary using all final contribution weight:
+zero votes and exactly half must fail. Warp through the first seven-day
+vote, all 30 improvement days and the second seven-day vote. Test missing
+proof, creator disappearance, early finalization, duplicate votes,
+unauthorized recipients, repeat release after claim closure, split bypass,
+early/stranded bond, termination with an unpaid approved claim, and
+duplicate refunds. Use more than 12 donors to prove the old registry and
+batch-refund constraint is gone.
 
-Keep base funding, overflow, new-round funding, released, refundable, reward-reserved and fee amounts distinct. Show that they cannot exceed funded assets or spend the same unit twice. If revenue sharing is later implemented, test its separate vault, agreed percentage/cap, and direct claims from actual on-chain receipts. Use a known test asset and label simulated supplier events; a reward claim or API response is not proof of delivered merchandise. Do not claim wallet addresses are anonymous.
+Rewards are off-chain promises unless independently verified. Do not call
+a reward claim proof of merchandise delivery, or public wallet addresses
+anonymous. Separate optional later work such as USDC, revenue sharing,
+extra funding and automated keepers from the core MVP.
 
 Link each demo check to the applicable PDF requirement: criteria p.3 requires on-chain enforcement and confirmed transactions; pp.2–3 require a complete live flow. Record the command, outcome and material gaps rather than treating tool connectivity as passing program tests.
 

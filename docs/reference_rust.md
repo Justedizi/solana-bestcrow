@@ -1,156 +1,69 @@
-# Charity Vault — Rust Program Reference
+# Charity Vault program: current-code reference
 
-**One-liner:** an on-chain treasury for charity campaigns. Money sits in a program-owned
-vault and can only move along the rules fixed when the campaign was created.
+This file describes the **existing, legacy Anchor program** at commit
+`15cb14a`. It is not the approved Bestcrow MVP protocol. The source is
+`rust/programs/charity-vault/src/`; the detailed present instruction
+contract is in [rust/docs/API.md](../rust/docs/API.md). New startup
+requirements and the chronological migration are in
+[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-- **Program ID (devnet):** `74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG`
-- **Framework:** Anchor 1.1.2 · Rust
-- **Source:** `rust/programs/charity-vault/src/`
+## Current account model
 
-There are **two campaign modes**:
+The program ID declared in source is
+`74GsU9xRv9qvVHXXvTAAmRp8ETTEAwGjV1UkJQ6BZNpG`.
+That declaration is not proof that the latest build is deployed.
+The program uses one shared executable, not a new program per campaign:
 
-1. **Simple (all-or-nothing)** — goal + deadline. Goal met → creator sweeps the vault.
-   Goal missed → every donor refunded, all in one transaction.
-2. **Staged** — goal + deadline + milestones. Backers vote on milestones; funds release
-   in tranches, optionally streamed over time, with a creator bond and a termination path.
-
-Read §1 (mental model), then jump to the instruction you need in §3.
-
----
-
-## 1. Mental model in 60 seconds
-
-```
-creator ──create──▶ Campaign ──pledge◀── donors ──▶ Vault (holds SOL)
-                       │
-      after deadline   ▼
-   finalize() ──▶ Succeeded ──▶ claim_success / release_*   (creator gets paid)
-              └─▶ Refunded  ──▶ claim_refund / refund_all   (donors made whole)
-```
-
-- **Nobody custodies funds.** The vault is a PDA owned by the program. No human can
-  withdraw outside these instructions.
-- **Rules are fixed at creation.** Goal, deadline, budget and split never change.
-- **`finalize` decides the outcome.** Anyone can call it after the deadline; it sets
-  `Succeeded` or `Refunded` by comparing `raised` to `goal`.
-- **Votes only ever release money, never create it.** Staged campaigns gate each tranche
-  on backer approval, but the vault balance is still the hard ceiling.
-
----
-
-## 2. Accounts (state)
-
-Seeds use `[base, ...]`. All are PDAs under this program.
-
-| Account | Seeds | Holds |
+| Account | PDA seeds | Current purpose |
 | --- | --- | --- |
-| `CampaignAccount` | `campaign, creator, campaign_id` | goal, deadline, `desc_hash`, `raised`, status, donor list, staged fields |
-| `DonorLedgerAccount` | `donor, campaign, donor` | one donor's `amount` + `claimed` flag |
-| Vault | `vault, campaign` | the tracked SOL (lamports) |
-| Bond vault | `bond, campaign` | creator bond (staged) |
-| `MilestoneAccount` | `milestone, campaign, index` | one milestone's amount, status, vote weights |
-| `VoteRecord` | `vote, milestone, round, backer` | a backer's single vote |
-| `SplitAccount` | `split, campaign` | up to 5 recipients + shares (bps) |
-| `ClaimAccount` | `claim, campaign, index` | a released tranche, possibly vesting |
+| Campaign | `campaign, creator, campaign_id` | Goal, deadline, raised amount, status, donor registry and staged fields |
+| Vault | `vault, campaign` | Campaign SOL, owned by the program |
+| Donor ledger | `donor, campaign, donor` | Pledge amount and refund claim state |
+| Milestone | `milestone, campaign, index` | Fixed amount, evidence hash, status and votes |
+| Vote | `vote, milestone, round, backer` | One record per backer and round |
+| Bond vault | `bond, campaign` | Optional current creator bond |
+| Split | `split, campaign` | Up to five recipients |
+| Claim | `claim, campaign, index` | Released, potentially vesting tranche |
 
-**Enums**
+The current `MAX_DONORS = 12` cap is tied to `refund_all`; it must be
+removed for a scalable individual-refund model. Current milestone approval
+uses at least 70% of `raised`, with no vote window. The target is strictly
+more than 50% of final contribution weight after a seven-day vote, then
+30 days of improvement and a second seven-day vote.
 
-- `CampaignStatus`: `Active` → `Succeeded` | `Refunded`
-- `MilestoneStatus`: `Pending` → `Submitted` → (`Released` | `Revision` → … | `Rejected`)
+## Current instruction groups
 
-**Key constants** (`constants.rs`): `MAX_DONORS = 12`, `MAX_MILESTONES = 5`,
-`MAX_SPLIT_RECIPIENTS = 5`, `APPROVE_BPS = 7000` (70%), `MAX_MILESTONE_BPS = 5000` (50%).
+- Base flow: `create_campaign`, `pledge`, `finalize`,
+  `claim_success`, `claim_refund`, `refund_all`.
+- Staged flow: `create_staged_campaign`, `add_milestone`,
+  `submit_evidence`, `vote_milestone`, `finalize_vote`,
+  `release_initial`, `set_split`, `release_tranche`,
+  `withdraw_claim`, `terminate`, `claim_termination_refund`,
+  `claim_bond`.
 
----
+These entrypoints do not yet provide a sealed 2-5 tranche schedule, a
+1% success fee, mandatory 0.1 SOL deposit, overfunding, cancellation during
+funding, timed votes, a safe missed-evidence path, or unlimited donor
+registrations. In the target product, all tranches including the starting
+release must sum to 100% of the **post-fee** contribution balance, with
+each at most 50%.
 
-## 3. Instructions (the whole API)
+## Known security and accounting gaps
 
-### Simple campaign
+1. A fully withdrawn claim is closed while its milestone remains released,
+   allowing the claim PDA to be recreated and paid again until the broader
+   `released <= raised` check stops it.
+2. A caller can choose a different program-owned account instead of the
+   configured split PDA and send the full claim to the creator.
+3. The creator can reclaim the bond immediately after funding succeeds,
+   defeating later forfeiture; a failed funding goal strands the bond.
+4. Anyone can finalize a submitted vote immediately, even before other
+   backers vote or with zero votes.
+5. Milestones may be added after backers pledge. Their deadlines and order
+   are not fully enforced by the release flow.
+6. Termination freezes the entire vault as a refund pool, including funds
+   backing approved but unpaid claims, then prevents their withdrawal.
 
-| Instruction | Signer | What it does |
-| --- | --- | --- |
-| `create_campaign(campaign_id, goal, deadline, desc_hash)` | creator | Creates campaign + vault. |
-| `pledge(amount)` | donor | Moves SOL into the vault, writes the donor ledger. Rejects if past deadline or over goal. |
-| `finalize()` | anyone | After deadline: `Succeeded` if `raised >= goal`, else `Refunded`. |
-| `claim_success()` | creator | On `Succeeded`: sweeps the whole vault to the creator, once. |
-| `claim_refund()` | donor | On `Refunded`: returns that donor's exact pledge, once; closes the ledger. |
-| `refund_all()` | anyone | On `Refunded`: pays every registered donor in **one** transaction. |
-
-### Staged campaign
-
-| Instruction | Signer | What it does |
-| --- | --- | --- |
-| `create_staged_campaign(campaign_id, goal, deadline, desc_hash, base_budget, initial_tranche, bond)` | creator | Like `create_campaign` plus a budget, an initial tranche, and an optional bond. |
-| `add_milestone(index, amount, deadline, evidence_hash)` | creator | Adds milestones in order (0,1,2…). Each ≤ 50% of budget; sum ≤ budget. |
-| `submit_evidence(index, evidence_hash)` | creator | On `Succeeded`: marks a milestone `Submitted`, opening the vote. |
-| `vote_milestone(index, approve)` | backer | A donor votes. Weight = their cumulative pledge. One vote per round. |
-| `finalize_vote(index)` | anyone | Tally: ≥70% of `raised` → `Released`; else round 1 → `Revision`, round 2 → `Rejected`. |
-| `release_initial()` | creator | On `Succeeded`: pays the initial tranche to the creator, once. |
-| `set_split(recipients, shares_bps)` | creator | Optional: splits future withdrawals across up to 5 recipients (must sum to 10000 bps). |
-| `release_tranche(index, duration)` | creator | On a `Released` milestone: mints a claim; `duration=0` pays instantly, else vests linearly. |
-| `withdraw_claim(index)` | anyone | Pays vested amount to the creator (or the split recipients). Closes the claim when fully paid. |
-| `terminate()` | creator **or** anyone after a rejection | Freezes the refund pool; a rejected milestone forfeits the creator bond into it. |
-| `claim_termination_refund()` | donor | After termination: pays the donor's pro-rata share of `refund_pool`. |
-| `claim_bond()` | creator | On `Succeeded`, not terminated, not forfeited: returns the bond. |
-
----
-
-## 4. Flows
-
-**Happy path (simple):**
-`create_campaign` → `pledge`×n → `finalize` → `claim_success`
-
-**Refund path (simple):**
-`create_campaign` → `pledge`×n → `finalize` (missed) → `refund_all` (or each `claim_refund`)
-
-**Staged success:**
-`create_staged_campaign` → `add_milestone`×n → `pledge`×n → `finalize` →
-`release_initial` → per milestone: `submit_evidence` → `vote_milestone`×n →
-`finalize_vote` → `release_tranche` → `withdraw_claim`
-
-**Staged failure:**
-… a milestone is `Rejected` (fails its second vote) → `terminate` → each donor
-`claim_termination_refund`.
-
----
-
-## 5. Security invariants
-
-- **Vault is program-owned.** Funds move by direct lamport moves inside the program;
-  seeds are re-derived on every path, so a forged account fails.
-- **Double-spend guards.** `claimed` (refund) and `campaign.paid` (initial) block repeats.
-- **Outcome is program-decided.** `finalize` compares on-chain counters; callers can't pass
-  in the result.
-- **Fail-closed.** Wrong status, past deadline, over-goal pledges, bad PDA, and bad split
-  all revert the whole transaction.
-- **Votes can't exceed backing.** A milestone's total vote weight is capped at `campaign.raised`.
-
----
-
-## 6. Errors
-
-Custom codes in `error.rs`. Most common:
-
-| Error | Meaning |
-| --- | --- |
-| `CampaignNotActive` | Campaign already finalized. |
-| `DeadlinePassed` / `DeadlineNotPassed` | Time gate on the call. |
-| `GoalOverflow` | Pledge would push `raised` above `goal`. |
-| `AlreadyClaimed` | Double refund / double payout. |
-| `InvalidMilestoneStatus` | Wrong step order for a milestone. |
-| `MilestoneExceedsHalf` / `MilestoneSumExceedsBudget` | Budget rules. |
-| `VoteWeightExceedsRaised` | Vote total above backing. |
-| `CampaignTerminated` / `CampaignNotTerminated` | Termination-state gate. |
-| `InsufficientVaultBalance` | Vault can't cover the transfer. |
-
----
-
-## 7. Build & test
-
-```bash
-cd rust
-cargo build-sbf --manifest-path programs/charity-vault/Cargo.toml --arch v0
-cargo test    --manifest-path programs/charity-vault/Cargo.toml
-```
-
-> `--arch v0` is required on this toolchain (platform-tools target SBPFv3).
+See [the implementation plan](IMPLEMENTATION_PLAN.md) for the exact fixes and
+adversarial tests. No current code path should be described as an audited or
+deployed target MVP merely because it appears in this reference.
