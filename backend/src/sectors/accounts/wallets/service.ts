@@ -43,6 +43,7 @@ export class WalletService {
       if (wallet && wallet.userId !== userId) throw new ApiError(409, 'Wallet is already linked to another account');
     } else {
       if (!wallet) {
+        if (this.repository.wasWalletRevoked(value)) throw new ApiError(403, 'Wallet is not linked to an account');
         // Wallet-first onboarding: the signed challenge is the proof of ownership.
         // The account is created before issuing the challenge and remains unusable
         // through password auth because its password hash is deliberately disabled.

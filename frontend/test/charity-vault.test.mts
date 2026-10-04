@@ -49,6 +49,16 @@ test('describeSendError explains a missing program', () => {
   assert.match(describeSendError(nested([7050004])), /not deployed/);
 });
 
+test('describeSendError explains a campaign ID collision', () => {
+  const error = {
+    context: {
+      __code: -32002,
+      logs: ['Program log: Instruction: CreateCampaign', 'Allocate: account address already in use'],
+    },
+  };
+  assert.match(describeSendError(error), /already used.*new campaign ID/);
+});
+
 test('describeSendError falls back to the original message', () => {
   assert.equal(describeSendError(new Error('boom')), 'boom');
   assert.equal(describeSendError('nope'), 'Transaction failed');

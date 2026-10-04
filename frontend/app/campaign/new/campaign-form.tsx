@@ -5,6 +5,7 @@ import { address } from '@solana/kit';
 import { useConnectedWallet } from '@solana/kit-plugin-wallet/react';
 import { client } from '../../providers';
 import { createCampaignIx, digest, parseSol } from '../../lib/charity-vault';
+import { withRpcRetry } from '../../lib/rpc-retry';
 import { sendCampaignInstruction } from '../../lib/send-campaign';
 
 export default function CampaignForm() {
@@ -15,6 +16,7 @@ export default function CampaignForm() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!connected?.signer) {
       setStatus('Connect a signing wallet in the upper-right corner first.');
       return;
@@ -45,10 +47,16 @@ export default function CampaignForm() {
 
       const creator = address(connected.account.address);
       const { campaign, ix } = await createCampaignIx(creator, campaignId, goal, deadline, await digest(description));
+      const { value: existingAccount } = await withRpcRetry(
+        () => client.rpc.getAccountInfo(campaign, { encoding: 'base64', commitment: 'confirmed' }).send(),
+      );
+      if (existingAccount) {
+        throw new Error('This campaign ID is already used by your wallet. Enter a new campaign ID.');
+      }
       setStatus('Approve the transaction in Phantom...');
       const signature = await sendCampaignInstruction(client, creator, connected.signer, ix);
       setStatus(`Campaign created at ${campaign}. Transaction: ${signature}`);
-      event.currentTarget.reset();
+      form.reset();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Campaign creation failed.');
     } finally {

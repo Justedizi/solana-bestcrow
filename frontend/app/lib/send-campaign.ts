@@ -48,6 +48,11 @@ function hasEmptyPreflightContext(error: unknown): boolean {
     && node.context?.unitsConsumed === 0n;
 }
 
+function hasCampaignIdCollision(error: unknown): boolean {
+  const logs = (error as ErrorNode).context?.logs;
+  return Array.isArray(logs) && logs.some((log) => /allocate: account .* already in use/i.test(log));
+}
+
 /**
  * The RPC/send plugins wrap the underlying simulation error several levels
  * deep. Unwrap the chain and translate the two codes that matter here —
@@ -73,6 +78,9 @@ export function describeSendError(error: unknown): string {
     }
     if (code === BLOCKHASH_NOT_FOUND) {
       return 'The wallet approval took too long and the transaction blockhash expired. Try signing again.';
+    }
+    if (code === PREFLIGHT_FAILURE && hasCampaignIdCollision(current)) {
+      return 'This campaign ID is already used by your wallet. Enter a new campaign ID.';
     }
     if (code === PREFLIGHT_FAILURE && hasEmptyPreflightContext(current)) {
       return 'The Devnet RPC could not simulate this transaction. Keep Phantom on Devnet and try again with a new campaign ID.';
