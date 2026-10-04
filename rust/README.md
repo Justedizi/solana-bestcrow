@@ -9,6 +9,11 @@ Opis API i kont poniżej dotyczy **obecnej implementacji** w
 `programs/charity-vault/src`, a nie wdrożonych już zasad docelowych.
 API programu to instrukcje transakcji Solany, nie endpointy HTTP.
 Reguły docelowe są wypisane osobno; wymagają zmian kodu, testów i wdrożenia.
+Dodano wstępną implementację finansowania V2 w
+[`funding_v2.rs`](programs/charity-vault/src/funding_v2.rs): osobne PDA,
+zamknięcie harmonogramu, nadwyżki, anulowanie, prowizję i refund po porażce
+celu. Przeszły testy jednostkowe; instrukcje nie zostały jeszcze sprawdzone
+w SBF/LiteSVM ani wdrożone. Stan `Completed` i przepadek kaucji wymagają P2.
 Kanoniczna kolejność prac i otwarte decyzje znajdują się w
 [planie implementacji](../docs/IMPLEMENTATION_PLAN.md).
 
